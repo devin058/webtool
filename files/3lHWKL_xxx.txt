@@ -1,0 +1,19 @@
+
+
+
+# ղ
+target_string=
+
+# ȡĻ
+screen_content=
+
+# ĿַǷ
+if [[  == ** ]]; then
+    echo ַָ $target_string ĻС
+else
+    echo ַָ $target_string ĻС
+fi
+
+
+
+

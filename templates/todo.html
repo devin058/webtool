@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📝 待办清单</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh; color: #e2e8f0;
+        }
+        .container { max-width: 900px; margin: 0 auto; padding: 30px 20px; }
+        .top-bar { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+        .back-btn { color: #94a3b8; text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
+        .back-btn:hover { color: #e2e8f0; }
+        .top-bar h1 { font-size: 1.5rem; color: #f1f5f9; }
+
+        /* 统计卡片 */
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+        .stat-card {
+            background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+            padding: 18px 16px; text-align: center; cursor: pointer; transition: all 0.2s;
+        }
+        .stat-card:hover { border-color: #8b5cf6; transform: translateY(-2px); }
+        .stat-card .num { font-size: 2rem; font-weight: 700; }
+        .stat-card .label { font-size: 0.8rem; color: #94a3b8; margin-top: 4px; }
+        .stat-card.total .num { color: #e2e8f0; }
+        .stat-card.active .num { color: #60a5fa; }
+        .stat-card.done .num { color: #34d399; }
+        .stat-card.overdue .num { color: #f87171; }
+        .stat-card.active-filter { border-color: #8b5cf6; background: rgba(139,92,246,0.08); }
+
+        /* 操作栏 */
+        .toolbar {
+            background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+            padding: 16px 20px; margin-bottom: 20px;
+            display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+        }
+        .toolbar input, .toolbar select {
+            background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+            color: #e2e8f0; padding: 8px 12px; font-size: 0.85rem; outline: none;
+        }
+        .toolbar input:focus, .toolbar select:focus { border-color: #8b5cf6; }
+        .toolbar input { flex: 1 1 180px; min-width: 140px; }
+        .toolbar select { min-width: 100px; }
+        .spacer { flex: 1; }
+
+        .btn {
+            border: none; border-radius: 8px; padding: 9px 18px; font-size: 0.85rem;
+            cursor: pointer; transition: all 0.2s; font-weight: 500; white-space: nowrap;
+        }
+        .btn-primary { background: #8b5cf6; color: #fff; }
+        .btn-primary:hover { background: #7c3aed; transform: translateY(-1px); }
+        .btn-danger { background: #ef4444; color: #fff; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-outline { background: #334155; color: #e2e8f0; }
+        .btn-outline:hover { background: #475569; }
+        .btn-sm { padding: 5px 10px; font-size: 0.75rem; }
+        .btn-icon {
+            background: transparent; border: none; color: #94a3b8; cursor: pointer;
+            padding: 4px 6px; font-size: 1.1rem; transition: color 0.2s; border-radius: 4px;
+        }
+        .btn-icon:hover { color: #e2e8f0; background: rgba(255,255,255,0.05); }
+
+        /* 任务列表 */
+        .todo-list { display: flex; flex-direction: column; gap: 10px; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #64748b; }
+        .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+        .empty-state p { font-size: 0.9rem; }
+
+        .todo-card {
+            background: #1e293b; border: 1px solid #334155; border-radius: 10px;
+            padding: 14px 18px; transition: all 0.2s;
+            display: flex; gap: 12px; align-items: flex-start;
+        }
+        .todo-card:hover { border-color: #475569; }
+        .todo-card.completed { opacity: 0.5; }
+        .todo-card.completed .todo-title { text-decoration: line-through; color: #64748b; }
+
+        .priority-strip {
+            width: 4px; min-height: 40px; border-radius: 2px; flex-shrink: 0; align-self: stretch;
+        }
+        .priority-strip.high { background: #ef4444; }
+        .priority-strip.medium { background: #f59e0b; }
+        .priority-strip.low { background: #22c55e; }
+
+        .todo-body { flex: 1; min-width: 0; }
+        .todo-header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .todo-check {
+            width: 20px; height: 20px; border: 2px solid #475569; border-radius: 50%;
+            cursor: pointer; flex-shrink: 0; transition: all 0.2s;
+            display: flex; align-items: center; justify-content: center;
+            background: transparent; padding: 0;
+        }
+        .todo-check:hover { border-color: #8b5cf6; }
+        .todo-check.done { background: #8b5cf6; border-color: #8b5cf6; }
+        .todo-check.done::after { content: '✓'; color: #fff; font-size: 0.7rem; font-weight: 700; }
+
+        .todo-title {
+            font-size: 1rem; font-weight: 500; color: #f1f5f9; flex: 1; min-width: 0;
+        }
+        .todo-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; align-items: center; }
+        .tag {
+            font-size: 0.7rem; padding: 3px 10px; border-radius: 20px; font-weight: 500;
+        }
+        .tag-category { background: rgba(139,92,246,0.15); color: #a78bfa; }
+        .tag-priority { background: rgba(245,158,11,0.15); color: #fbbf24; }
+        .tag-due { background: rgba(96,165,250,0.15); color: #93c5fd; }
+        .tag-overdue { background: rgba(239,68,68,0.2); color: #fca5a5; font-weight: 600; animation: pulse 2s infinite; }
+        .tag-done { background: rgba(52,211,153,0.15); color: #6ee7b7; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .todo-desc {
+            font-size: 0.8rem; color: #94a3b8; margin-top: 6px; line-height: 1.5;
+            white-space: pre-wrap; word-break: break-word;
+        }
+        .todo-actions { display: flex; gap: 2px; flex-shrink: 0; align-items: flex-start; }
+
+        /* 子任务 */
+        .subtasks { margin-top: 10px; }
+        .subtask-item {
+            display: flex; align-items: center; gap: 8px; padding: 5px 0;
+            font-size: 0.8rem; color: #cbd5e1; border-bottom: 1px solid #1e293b;
+        }
+        .subtask-item .sub-check {
+            width: 16px; height: 16px; border: 1.5px solid #475569; border-radius: 4px;
+            cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+            background: transparent; padding: 0; transition: all 0.2s;
+        }
+        .subtask-item .sub-check.done { background: #8b5cf6; border-color: #8b5cf6; }
+        .subtask-item .sub-check.done::after { content: '✓'; color: #fff; font-size: 0.55rem; }
+        .subtask-item .sub-title { flex: 1; }
+        .subtask-item.completed .sub-title { text-decoration: line-through; color: #64748b; }
+        .subtask-item .sub-del { color: #ef4444; cursor: pointer; font-size: 0.9rem; opacity: 0; transition: opacity 0.2s; background: none; border: none; }
+        .subtask-item:hover .sub-del { opacity: 1; }
+
+        .sub-add-row { display: flex; gap: 8px; margin-top: 8px; }
+        .sub-add-row input {
+            flex: 1; background: #0f172a; border: 1px solid #334155; border-radius: 6px;
+            color: #e2e8f0; padding: 5px 10px; font-size: 0.8rem; outline: none;
+        }
+        .sub-add-row input:focus { border-color: #8b5cf6; }
+
+        .sub-progress { height: 3px; background: #334155; border-radius: 2px; margin-top: 8px; overflow: hidden; }
+        .sub-progress .fill { height: 100%; background: #8b5cf6; transition: width 0.3s; }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.25s;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal {
+            background: #1e293b; border: 1px solid #334155; border-radius: 16px;
+            padding: 28px; width: 90%; max-width: 520px; max-height: 85vh; overflow-y: auto;
+        }
+        .modal h3 { font-size: 1.2rem; color: #f1f5f9; margin-bottom: 20px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label {
+            display: block; font-size: 0.8rem; color: #94a3b8; margin-bottom: 6px; font-weight: 500;
+        }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+            color: #e2e8f0; padding: 10px 14px; font-size: 0.9rem; outline: none; font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        .form-group textarea { min-height: 80px; resize: vertical; }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: #8b5cf6; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        /* Toast */
+        .toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: #10b981; color: #fff; padding: 10px 24px; border-radius: 8px;
+            font-size: 0.9rem; z-index: 999; opacity: 0; transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        .toast.show { opacity: 1; }
+        .toast.error { background: #ef4444; }
+
+        @media (max-width: 640px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .form-row { grid-template-columns: 1fr; }
+            .container { padding: 16px 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-bar">
+            <a href="/" class="back-btn">← 返回首页</a>
+            <h1>📝 待办清单</h1>
+        </div>
+
+        <!-- 统计面板 -->
+        <div class="stats-row" id="statsRow">
+            <div class="stat-card total" data-status="all" onclick="setFilter('status','all')">
+                <div class="num" id="statTotal">0</div>
+                <div class="label">📋 全部任务</div>
+            </div>
+            <div class="stat-card active" data-status="active" onclick="setFilter('status','active')">
+                <div class="num" id="statActive">0</div>
+                <div class="label">⏳ 进行中</div>
+            </div>
+            <div class="stat-card done" data-status="done" onclick="setFilter('status','done')">
+                <div class="num" id="statDone">0</div>
+                <div class="label">✅ 已完成</div>
+            </div>
+            <div class="stat-card overdue" data-status="overdue" onclick="setFilter('status','overdue')">
+                <div class="num" id="statOverdue">0</div>
+                <div class="label">⚠️ 已逾期</div>
+            </div>
+        </div>
+
+        <!-- 工具栏 -->
+        <div class="toolbar">
+            <input type="text" id="searchInput" placeholder="🔍 搜索任务..." oninput="debounceLoad()">
+            <select id="statusFilter" onchange="loadTodos()">
+                <option value="all">全部状态</option>
+                <option value="active">进行中</option>
+                <option value="done">已完成</option>
+                <option value="overdue">已逾期</option>
+            </select>
+            <select id="priorityFilter" onchange="loadTodos()">
+                <option value="">全部优先级</option>
+                <option value="high">🔴 高</option>
+                <option value="medium">🟡 中</option>
+                <option value="low">🟢 低</option>
+            </select>
+            <select id="sortSelect" onchange="loadTodos()">
+                <option value="created_desc">🕐 最新优先</option>
+                <option value="created_asc">🕐 最早优先</option>
+                <option value="priority_desc">🔥 优先级高→低</option>
+                <option value="priority_asc">🔽 优先级低→高</option>
+                <option value="due_asc">📅 截止日期近→远</option>
+                <option value="due_desc">📅 截止日期远→近</option>
+                <option value="title_asc">🔤 标题 A→Z</option>
+                <option value="title_desc">🔤 标题 Z→A</option>
+            </select>
+            <span class="spacer"></span>
+            <button class="btn btn-primary" onclick="openModal()">＋ 新建任务</button>
+            <button class="btn btn-outline btn-sm" onclick="clearCompleted()" title="清除所有已完成任务">🗑 清已完成</button>
+            <button class="btn btn-outline btn-sm" onclick="exportTodos()">📤 导出</button>
+            <button class="btn btn-outline btn-sm" onclick="document.getElementById('importFile').click()">📥 导入</button>
+            <input type="file" id="importFile" accept=".json" onchange="importTodos(this)" style="display:none">
+        </div>
+
+        <!-- 任务列表 -->
+        <div class="todo-list" id="todoList">
+            <div class="empty-state">
+                <div class="icon">📝</div>
+                <p>暂无任务，点击「＋ 新建任务」开始吧！</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑弹窗 -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <h3 id="modalTitle">新建任务</h3>
+            <input type="hidden" id="editId">
+            <div class="form-group">
+                <label>📌 任务标题 *</label>
+                <input type="text" id="editTitle" placeholder="输入任务标题...">
+            </div>
+            <div class="form-group">
+                <label>📝 描述</label>
+                <textarea id="editDesc" placeholder="任务详情（可选）..."></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>🔥 优先级</label>
+                    <select id="editPriority">
+                        <option value="high">🔴 高</option>
+                        <option value="medium" selected>🟡 中</option>
+                        <option value="low">🟢 低</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>🏷️ 分类</label>
+                    <input type="text" id="editCategory" list="categoryList" placeholder="自定义或选择...">
+                    <datalist id="categoryList"></datalist>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>📅 截止日期</label>
+                <input type="date" id="editDueDate">
+            </div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
+                <button class="btn btn-outline" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" id="saveBtn" onclick="saveTodo()">💾 保存</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ── 全局状态 ──
+        let todos = [];
+        let searchTimer = null;
+
+        // ── 工具函数 ──
+        function showToast(msg, isError=false, duration=2200) {
+            const t = document.getElementById('toast');
+            t.textContent = msg; t.className = 'toast' + (isError ? ' error' : '') + ' show';
+            setTimeout(() => t.classList.remove('show'), duration);
+        }
+
+        function formatDate(d) { if (!d) return ''; const dt = new Date(d + 'T00:00:00'); return dt.toLocaleDateString('zh-CN', {month:'short',day:'numeric'}); }
+        function isOverdue(d, completed) { if (!d || completed) return false; return d < new Date().toISOString().slice(0,10); }
+        function todayStr() { return new Date().toISOString().slice(0,10); }
+
+        function debounceLoad() {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(loadTodos, 300);
+        }
+
+        // ── 加载任务列表 ──
+        async function loadTodos() {
+            const params = new URLSearchParams();
+            const status = document.getElementById('statusFilter').value;
+            const priority = document.getElementById('priorityFilter').value;
+            const sort = document.getElementById('sortSelect').value;
+            const search = document.getElementById('searchInput').value.trim();
+
+            if (status && status !== 'all') {
+                if (status === 'overdue') { params.set('status', 'active'); params.set('overdue', '1'); }
+                else params.set('status', status);
+            }
+            if (priority) params.set('priority', priority);
+            if (search) params.set('search', search);
+            params.set('sort', sort);
+
+            try {
+                const res = await fetch('/api/todos?' + params.toString());
+                todos = await res.json();
+
+                // 如果是"已逾期"筛选，客户端再过滤一次
+                if (status === 'overdue') {
+                    todos = todos.filter(t => t.overdue);
+                }
+
+                renderTodos();
+                loadStats();
+                updateCategoryList();
+            } catch (e) {
+                showToast('❌ 加载失败: ' + e.message, true);
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/todos/stats');
+                const s = await res.json();
+                document.getElementById('statTotal').textContent = s.total;
+                document.getElementById('statActive').textContent = s.active;
+                document.getElementById('statDone').textContent = s.done;
+                document.getElementById('statOverdue').textContent = s.overdue;
+            } catch(e) {}
+        }
+
+        function setFilter(type, value) {
+            if (type === 'status') {
+                document.getElementById('statusFilter').value = value;
+            }
+            // 高亮统计卡片
+            document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active-filter'));
+            const card = document.querySelector(`.stat-card[data-status="${value}"]`);
+            if (card) card.classList.add('active-filter');
+            loadTodos();
+        }
+
+        // ── 渲染 ──
+        function renderTodos() {
+            const list = document.getElementById('todoList');
+            if (!todos.length) {
+                list.innerHTML = `<div class="empty-state"><div class="icon">📝</div><p>暂无任务，点击「＋ 新建任务」开始吧！</p></div>`;
+                return;
+            }
+            list.innerHTML = todos.map(t => {
+                const priorityLabel = {high:'高', medium:'中', low:'低'}[t.priority] || '中';
+                const dueClass = t.overdue ? 'tag-overdue' : 'tag-due';
+                const dueText = t.due_date ? (t.overdue ? '⚠ 逾期: ' : '📅 ') + formatDate(t.due_date) : '';
+                const catTag = t.category ? `<span class="tag tag-category">🏷 ${escHtml(t.category)}</span>` : '';
+
+                const subDone = t.subtasks.filter(s => s.completed).length;
+                const subTotal = t.subtasks.length;
+                const subPct = subTotal > 0 ? Math.round((subDone / subTotal) * 100) : 0;
+
+                let subtasksHtml = '';
+                if (subTotal > 0) {
+                    subtasksHtml = `
+                    <div class="sub-progress"><div class="fill" style="width:${subPct}%"></div></div>
+                    <div class="subtasks">
+                        ${t.subtasks.map(s => `
+                            <div class="subtask-item ${s.completed ? 'completed' : ''}">
+                                <button class="sub-check ${s.completed ? 'done' : ''}" onclick="toggleSubtask(${s.id})" title="切换完成"></button>
+                                <span class="sub-title">${escHtml(s.title)}</span>
+                                <button class="sub-del" onclick="deleteSubtask(${s.id})" title="删除">×</button>
+                            </div>
+                        `).join('')}
+                    </div>`;
+                }
+
+                return `
+                <div class="todo-card ${t.completed ? 'completed' : ''}">
+                    <div class="priority-strip ${t.priority}"></div>
+                    <div class="todo-body">
+                        <div class="todo-header">
+                            <button class="todo-check ${t.completed ? 'done' : ''}" onclick="toggleTodo(${t.id})" title="切换完成状态"></button>
+                            <span class="todo-title">${escHtml(t.title)}</span>
+                            <span class="tag tag-priority">${priorityLabel}优先</span>
+                        </div>
+                        <div class="todo-meta">
+                            ${catTag}
+                            ${dueText ? `<span class="tag ${dueClass}">${dueText}</span>` : ''}
+                            ${t.completed && t.completed_at ? `<span class="tag tag-done">✓ ${formatDate(t.completed_at.slice(0,10))} 完成</span>` : ''}
+                        </div>
+                        ${t.description ? `<div class="todo-desc">${escHtml(t.description)}</div>` : ''}
+                        ${subtasksHtml}
+                        ${!t.completed ? `
+                        <div class="sub-add-row">
+                            <input type="text" placeholder="＋ 添加子任务..." id="subInput_${t.id}" onkeydown="if(event.key==='Enter')addSubtask(${t.id})">
+                            <button class="btn btn-outline btn-sm" onclick="addSubtask(${t.id})">＋</button>
+                        </div>` : ''}
+                    </div>
+                    <div class="todo-actions">
+                        <button class="btn-icon" onclick="openModal(${t.id})" title="编辑">✏️</button>
+                        <button class="btn-icon" style="color:#ef4444" onclick="deleteTodo(${t.id})" title="删除">🗑</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function escHtml(s) {
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        function updateCategoryList() {
+            const cats = [...new Set(todos.map(t => t.category).filter(Boolean))];
+            document.getElementById('categoryList').innerHTML = cats.map(c => `<option value="${escHtml(c)}">`).join('');
+        }
+
+        // ── Todo CRUD ──
+        function openModal(id) {
+            const modal = document.getElementById('modalOverlay');
+            document.getElementById('modalTitle').textContent = id ? '编辑任务' : '新建任务';
+            document.getElementById('editId').value = id || '';
+            document.getElementById('editTitle').value = '';
+            document.getElementById('editDesc').value = '';
+            document.getElementById('editPriority').value = 'medium';
+            document.getElementById('editCategory').value = '';
+            document.getElementById('editDueDate').value = '';
+
+            if (id) {
+                const t = todos.find(x => x.id === id);
+                if (t) {
+                    document.getElementById('editTitle').value = t.title;
+                    document.getElementById('editDesc').value = t.description || '';
+                    document.getElementById('editPriority').value = t.priority;
+                    document.getElementById('editCategory').value = t.category || '';
+                    document.getElementById('editDueDate').value = t.due_date || '';
+                }
+            }
+            modal.classList.add('active');
+            document.getElementById('editTitle').focus();
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+        }
+
+        async function saveTodo() {
+            const id = document.getElementById('editId').value;
+            const title = document.getElementById('editTitle').value.trim();
+            if (!title) { showToast('⚠️ 请输入标题', true); return; }
+
+            const body = {
+                title: title,
+                description: document.getElementById('editDesc').value.trim(),
+                priority: document.getElementById('editPriority').value,
+                category: document.getElementById('editCategory').value.trim(),
+                due_date: document.getElementById('editDueDate').value,
+            };
+
+            try {
+                const url = id ? `/api/todos/${id}` : '/api/todos';
+                const method = id ? 'PUT' : 'POST';
+                const res = await fetch(url, {
+                    method, headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify(body)
+                });
+                if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
+                closeModal();
+                loadTodos();
+                showToast(id ? '✅ 任务已更新' : '✅ 任务已创建');
+            } catch (e) {
+                showToast('❌ ' + e.message, true);
+            }
+        }
+
+        async function toggleTodo(id) {
+            try {
+                await fetch(`/api/todos/${id}/toggle`, {method:'PATCH'});
+                loadTodos();
+                showToast('✅ 状态已更新');
+            } catch(e) { showToast('❌ 操作失败', true); }
+        }
+
+        async function deleteTodo(id) {
+            if (!confirm('确定要删除这个任务吗？子任务也会一并删除。')) return;
+            try {
+                await fetch(`/api/todos/${id}`, {method:'DELETE'});
+                loadTodos();
+                showToast('🗑 任务已删除');
+            } catch(e) { showToast('❌ 删除失败', true); }
+        }
+
+        // ── 子任务 ──
+        async function addSubtask(todoId) {
+            const input = document.getElementById(`subInput_${todoId}`);
+            const title = input.value.trim();
+            if (!title) { showToast('⚠️ 请输入子任务内容', true); return; }
+            try {
+                await fetch(`/api/todos/${todoId}/subtasks`, {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({title})
+                });
+                input.value = '';
+                loadTodos();
+            } catch(e) { showToast('❌ 添加失败', true); }
+        }
+
+        async function toggleSubtask(subId) {
+            try {
+                await fetch(`/api/subtasks/${subId}/toggle`, {method:'PATCH'});
+                loadTodos();
+            } catch(e) { showToast('❌ 操作失败', true); }
+        }
+
+        async function deleteSubtask(subId) {
+            try {
+                await fetch(`/api/subtasks/${subId}`, {method:'DELETE'});
+                loadTodos();
+            } catch(e) { showToast('❌ 删除失败', true); }
+        }
+
+        // ── 批量操作 ──
+        async function clearCompleted() {
+            if (!confirm('确定要删除所有已完成的任务吗？此操作不可恢复。')) return;
+            try {
+                await fetch('/api/todos/bulk/completed', {method:'DELETE'});
+                loadTodos();
+                showToast('🗑 已完成任务已清除');
+            } catch(e) { showToast('❌ 操作失败', true); }
+        }
+
+        async function exportTodos() {
+            try {
+                const res = await fetch('/api/todos/export');
+                const data = await res.json();
+                const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = `todos_${todayStr()}.json`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('📤 导出成功');
+            } catch(e) { showToast('❌ 导出失败', true); }
+        }
+
+        function importTodos(input) {
+            if (!input.files[0]) return;
+            if (!confirm('将从 JSON 文件导入任务（不会覆盖现有任务），确定继续？')) { input.value = ''; return; }
+            const formData = new FormData();
+            formData.append('file', input.files[0]);
+            fetch('/api/todos/import', {method:'POST', body: formData})
+                .then(r => r.json())
+                .then(d => {
+                    if (d.error) throw new Error(d.error);
+                    showToast(`📥 成功导入 ${d.imported} 个任务`);
+                    loadTodos();
+                })
+                .catch(e => showToast('❌ 导入失败: ' + e.message, true))
+                .finally(() => { input.value = ''; });
+        }
+
+        // ── 键盘快捷键 ──
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'n') { e.preventDefault(); openModal(); }
+            if (e.key === 'Escape') { closeModal(); }
+        });
+
+        // 点击遮罩关闭
+        document.getElementById('modalOverlay').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        // 初始加载
+        loadTodos();
+    </script>
+</body>
+</html>

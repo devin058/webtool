@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧰 Web 小工具集合</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+        h1 {
+            color: #f1f5f9;
+            font-size: 2rem;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+        .subtitle {
+            color: #94a3b8;
+            margin-bottom: 48px;
+            font-size: 1rem;
+        }
+        .tool-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            max-width: 700px;
+            width: 100%;
+        }
+        .tool-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 16px;
+            padding: 32px 28px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-decoration: none;
+            display: block;
+            position: relative;
+        }
+        .tool-card:hover {
+            border-color: var(--color);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+        }
+        .tool-icon {
+            font-size: 2.5rem;
+            margin-bottom: 16px;
+            display: block;
+        }
+        .tool-name {
+            color: #f1f5f9;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .tool-desc {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .tool-badge {
+            display: inline-block;
+            background: var(--color);
+            color: #fff;
+            font-size: 0.7rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            margin-top: 16px;
+            opacity: 0.9;
+        }
+        footer {
+            margin-top: 80px;
+            color: #475569;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧰 Web 小工具集合</h1>
+    <p class="subtitle">轻量级在线工具，即开即用</p>
+
+    <div class="tool-grid">
+        {% for tool in tools %}
+        <a href="/tool/{{ tool.id }}" class="tool-card" style="--color: {{ tool.color }}">
+            <span class="tool-icon">{{ tool.icon }}</span>
+            <div class="tool-name">{{ tool.name }}</div>
+            <div class="tool-desc">{{ tool.desc }}</div>
+            <span class="tool-badge" style="--color: {{ tool.color }}">进入工具 →</span>
+        </a>
+        {% endfor %}
+    </div>
+
+    <footer>Powered by Flask · 本地运行</footer>
+</body>
+</html>

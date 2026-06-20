@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📎 文件分享</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh; color: #e2e8f0;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 60px 20px;
+        }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 32px; max-width: 600px; width: 100%; text-align: center; }
+        .card h1 { font-size: 1.3rem; margin-bottom: 20px; color: #f1f5f9; }
+
+        .error-state { padding: 40px 0; }
+        .error-state .icon { font-size: 3rem; margin-bottom: 16px; }
+        .error-state p { color: #94a3b8; font-size: 1rem; }
+        .error-state a { color: #818cf8; }
+
+        .file-icon { font-size: 4rem; margin-bottom: 16px; }
+        .file-name { color: #f1f5f9; font-size: 1.1rem; word-break: break-all; margin-bottom: 8px; }
+        .file-size { color: #94a3b8; font-size: 0.9rem; margin-bottom: 6px; }
+        .file-meta { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 16px 0; }
+        .file-meta .tag { background: #334155; color: #94a3b8; font-size: 0.75rem; padding: 3px 10px; border-radius: 20px; }
+
+        .btn-row { margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+        .btn {
+            background: #6366f1; color: #fff; border: none; border-radius: 8px;
+            padding: 12px 28px; font-size: 1rem; cursor: pointer;
+            transition: all 0.2s; font-weight: 500; text-decoration: none;
+            display: inline-block;
+        }
+        .btn:hover { background: #4f46e5; }
+        .btn-secondary { background: #334155; }
+        .btn-secondary:hover { background: #475569; }
+
+        .password-box { padding: 30px 0; }
+        .password-box input {
+            background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+            color: #e2e8f0; padding: 12px 16px; font-size: 1rem; width: 260px;
+            outline: none; margin-right: 10px;
+        }
+        .password-box input:focus { border-color: #6366f1; }
+        .password-error { color: #f87171; font-size: 0.85rem; margin-top: 10px; display: none; }
+
+        .toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: #10b981; color: #fff; padding: 10px 24px; border-radius: 8px;
+            font-size: 0.9rem; z-index: 999; opacity: 0; transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+    <div class="toast" id="toast"></div>
+
+    <div class="card">
+        {% if error %}
+        <div class="error-state">
+            <div class="icon">😕</div>
+            <p>{{ error }}</p>
+            <p style="margin-top:16px"><a href="/">← 返回首页</a></p>
+        </div>
+
+        {% elif need_password %}
+        <h1>🔒 此文件已加密</h1>
+        <div class="file-icon">📎</div>
+        <div class="file-name">{{ file.original_name }}</div>
+        <div class="file-size">{{ "%.1f"|format(file.file_size/1024) if file.file_size > 1024 else file.file_size|string }} {{ "KB" if file.file_size > 1024 else "B" }}</div>
+        <div class="password-box">
+            <input type="text" id="pwdInput" placeholder="请输入访问密码" autofocus>
+            <button class="btn" onclick="unlock()">解锁并下载</button>
+            <div class="password-error" id="pwdError">密码错误，请重试</div>
+        </div>
+
+        {% elif file %}
+        <div class="file-icon">📎</div>
+        <h1>文件分享</h1>
+        <div class="file-name">{{ file.original_name }}</div>
+        <div class="file-size">
+            {% if file.file_size > 1048576 %}
+                {{ "%.1f"|format(file.file_size/1048576) }} MB
+            {% elif file.file_size > 1024 %}
+                {{ "%.1f"|format(file.file_size/1024) }} KB
+            {% else %}
+                {{ file.file_size }} B
+            {% endif %}
+        </div>
+        <div class="file-meta">
+            <span class="tag">📅 {{ file.created_at[:19] }}</span>
+            {% if file.burn_after %}<span class="tag">🔥 阅后即焚</span>{% endif %}
+            {% if file.expire_hours > 0 %}<span class="tag">⏰ {{ file.expire_hours }}h 后过期</span>{% endif %}
+            {% if file.password %}<span class="tag">🔒 已加密</span>{% endif %}
+        </div>
+        <div class="btn-row">
+            <a href="/f/{{ file.code }}/download" class="btn">📥 下载文件</a>
+            <a href="/tool/netcut" class="btn btn-secondary" style="display:inline-block">📤 我也要分享</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        function showToast(msg, duration=2000) {
+            const t = document.getElementById('toast');
+            t.textContent = msg; t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), duration);
+        }
+
+        async function unlock() {
+            const pwd = document.getElementById('pwdInput').value;
+            const path = window.location.pathname;
+            const code = path.split('/f/')[1];
+
+            try {
+                const res = await fetch('/api/file/' + code, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: pwd })
+                });
+                const data = await res.json();
+                if (data.error) {
+                    document.getElementById('pwdError').style.display = 'block';
+                    return;
+                }
+                // 跳转到下载
+                window.location.href = data.url;
+            } catch (e) {
+                document.getElementById('pwdError').style.display = 'block';
+            }
+        }
+
+        document.getElementById('pwdInput')?.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') unlock();
+        });
+    </script>
+</body>
+</html>

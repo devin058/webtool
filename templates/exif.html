@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🖼️ 图片 EXIF 清除</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh; color: #e2e8f0;
+        }
+        .container { max-width: 800px; margin: 0 auto; padding: 30px 20px; }
+        .top-bar { display: flex; align-items: center; gap: 16px; margin-bottom: 32px; }
+        .back-btn { color: #94a3b8; text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
+        .back-btn:hover { color: #e2e8f0; }
+        .top-bar h1 { font-size: 1.5rem; color: #f1f5f9; }
+
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 28px; margin-bottom: 20px; }
+
+        .drop-zone {
+            border: 2px dashed #334155; border-radius: 12px; padding: 50px 20px;
+            text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 20px;
+        }
+        .drop-zone:hover, .drop-zone.drag-over { border-color: #f59e0b; background: rgba(245,158,11,0.05); }
+        .drop-zone .icon { font-size: 3rem; margin-bottom: 12px; }
+        .drop-zone p { color: #94a3b8; font-size: 0.9rem; }
+        .drop-zone .hint { color: #64748b; font-size: 0.75rem; margin-top: 6px; }
+        .drop-zone input { display: none; }
+
+        .preview-area { display: none; margin-bottom: 20px; }
+        .preview-area.show { display: block; }
+        .preview-area .compare {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+        }
+        .preview-area .col {
+            background: #0f172a; border: 1px solid #334155; border-radius: 10px;
+            padding: 16px; text-align: center;
+        }
+        .preview-area .col h4 { font-size: 0.85rem; color: #94a3b8; margin-bottom: 12px; }
+        .preview-area .col img {
+            max-width: 100%; max-height: 300px; border-radius: 6px; object-fit: contain;
+        }
+        .preview-area .col .meta-list {
+            text-align: left; font-size: 0.75rem; color: #94a3b8; margin-top: 10px;
+            max-height: 150px; overflow-y: auto; font-family: "JetBrains Mono", monospace;
+        }
+        .preview-area .col .meta-list div { padding: 2px 0; border-bottom: 1px solid #1e293b; }
+
+        .status-box { display: none; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
+        .status-box.show { display: block; }
+        .status-box.success { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); }
+        .status-box.error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); }
+        .status-box.processing { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); }
+        .status-box .msg { font-size: 0.9rem; }
+
+        .detail-list { font-size: 0.8rem; color: #94a3b8; margin-top: 8px; }
+        .detail-list span { display: inline-block; background: #334155; padding: 2px 8px; border-radius: 4px; margin: 2px; }
+
+        .btn {
+            background: #f59e0b; color: #000; border: none; border-radius: 8px;
+            padding: 10px 24px; font-size: 0.95rem; cursor: pointer;
+            transition: all 0.2s; font-weight: 600;
+        }
+        .btn:hover { background: #d97706; transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+        .btn:disabled { background: #475569; cursor: not-allowed; transform: none; color: #94a3b8; }
+        .btn-secondary { background: #334155; color: #e2e8f0; }
+        .btn-secondary:hover { background: #475569; }
+        .btn-row { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+
+        .info-card {
+            background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.2);
+            border-radius: 10px; padding: 16px; margin-top: 20px;
+        }
+        .info-card h3 { font-size: 0.9rem; color: #818cf8; margin-bottom: 8px; }
+        .info-card p { font-size: 0.8rem; color: #94a3b8; line-height: 1.6; }
+
+        .toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: #10b981; color: #fff; padding: 10px 24px; border-radius: 8px;
+            font-size: 0.9rem; z-index: 999; opacity: 0; transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        .toast.show { opacity: 1; }
+
+        @media (max-width: 640px) {
+            .preview-area .compare { grid-template-columns: 1fr; }
+            .container { padding: 16px 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-bar">
+            <a href="/" class="back-btn">← 返回首页</a>
+            <h1>🖼️ 图片 EXIF 清除</h1>
+        </div>
+
+        <div class="card">
+            <div class="drop-zone" id="dropZone" onclick="document.getElementById('imageInput').click()">
+                <div class="icon">🖼️</div>
+                <p>点击选择图片 或拖拽图片到此处</p>
+                <p class="hint">支持 JPG / PNG / GIF / BMP / WebP / TIFF · 所有处理均在本地完成</p>
+                <input type="file" id="imageInput" accept="image/*" onchange="handleImage(this.files[0])">
+            </div>
+
+            <div class="status-box" id="statusBox">
+                <div class="msg" id="statusMsg"></div>
+                <div class="detail-list" id="statusDetail"></div>
+            </div>
+
+            <div class="preview-area" id="previewArea">
+                <div class="compare">
+                    <div class="col">
+                        <h4>📷 原始图片</h4>
+                        <img id="originalImg" src="" alt="原始图片">
+                        <div class="meta-list" id="originalMeta"></div>
+                    </div>
+                    <div class="col">
+                        <h4>✅ 清理后</h4>
+                        <img id="cleanedImg" src="" alt="清理后图片">
+                        <div class="meta-list" id="cleanedMeta"></div>
+                    </div>
+                </div>
+                <div class="btn-row">
+                    <button class="btn" id="processBtn" onclick="processImage()">🧹 清除元数据</button>
+                    <button class="btn btn-secondary" id="downloadBtn" onclick="downloadImage()" style="display:none">💾 下载清理后的图片</button>
+                    <button class="btn btn-secondary" onclick="resetAll()">🔄 重新选择</button>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <h3>💡 此工具会清除什么？</h3>
+                <p>
+                    <strong>EXIF 数据：</strong>GPS 位置、拍摄时间、设备型号、相机参数等<br>
+                    <strong>IPTC/XMP 元数据：</strong>作者、版权、描述、关键词等<br>
+                    <strong>ICC 色彩配置文件：</strong>嵌入的色彩空间描述<br>
+                    <strong>AI 隐藏水印：</strong>DALL-E / Midjourney / Stable Diffusion / Gemini 等 AI 模型嵌入在 PNG 辅助 chunk 或 JPEG EXIF/Comment 中的生成信息和隐藏标识<br>
+                    <strong>缩略图：</strong>JPEG 内嵌的 EXIF 缩略图
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let selectedFile = null;
+        let cleanedBlob = null;
+        let cleanedFilename = null;
+
+        function showToast(msg, duration=2000) {
+            const t = document.getElementById('toast');
+            t.textContent = msg; t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), duration);
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1048576).toFixed(1) + ' MB';
+        }
+
+        async function handleImage(file) {
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                showToast('⚠️ 请选择图片文件');
+                return;
+            }
+
+            selectedFile = file;
+
+            // 显示预览
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('originalImg').src = e.target.result;
+                document.getElementById('dropZone').style.display = 'none';
+                document.getElementById('previewArea').classList.add('show');
+                document.getElementById('processBtn').style.display = '';
+                document.getElementById('downloadBtn').style.display = 'none';
+                document.getElementById('cleanedImg').src = '';
+                document.getElementById('statusBox').classList.remove('show');
+                document.getElementById('originalMeta').innerHTML =
+                    '<div>📛 文件名: ' + file.name + '</div>' +
+                    '<div>📏 大小: ' + formatSize(file.size) + '</div>' +
+                    '<div>📋 类型: ' + file.type + '</div>' +
+                    '<div>⏳ 等待分析...</div>';
+                document.getElementById('cleanedMeta').innerHTML = '<div>点击"清除元数据"开始处理</div>';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function processImage() {
+            if (!selectedFile) { showToast('⚠️ 请先选择图片'); return; }
+
+            const btn = document.getElementById('processBtn');
+            btn.disabled = true; btn.textContent = '处理中...';
+
+            const statusBox = document.getElementById('statusBox');
+            statusBox.className = 'status-box processing show';
+            document.getElementById('statusMsg').textContent = '⏳ 正在分析并清除元数据...';
+            document.getElementById('statusDetail').innerHTML = '';
+
+            const formData = new FormData();
+            formData.append('image', selectedFile);
+
+            try {
+                const res = await fetch('/api/exif/clean', { method: 'POST', body: formData });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.error || '处理失败');
+                }
+
+                cleanedBlob = await res.blob();
+                cleanedFilename = 'cleaned_' + selectedFile.name;
+
+                const url = URL.createObjectURL(cleanedBlob);
+                document.getElementById('cleanedImg').src = url;
+
+                // 显示元数据对比
+                const origSize = selectedFile.size;
+                const cleanSize = cleanedBlob.size;
+                const reduction = origSize > 0 ? ((1 - cleanSize / origSize) * 100).toFixed(1) : 0;
+
+                document.getElementById('originalMeta').innerHTML =
+                    '<div>📛 ' + selectedFile.name + '</div>' +
+                    '<div>📏 ' + formatSize(origSize) + '</div>' +
+                    '<div>📋 ' + selectedFile.type + '</div>';
+
+                document.getElementById('cleanedMeta').innerHTML =
+                    '<div>📛 ' + cleanedFilename + '</div>' +
+                    '<div>📏 ' + formatSize(cleanSize) + '</div>' +
+                    '<div>📉 减少了 ' + reduction + '%</div>' +
+                    '<div style="color:#10b981;margin-top:4px">✅ 所有元数据已清除</div>';
+
+                // 列出清除了什么
+                const removed = [];
+                if (['jpg','jpeg','tiff','tif'].includes(selectedFile.name.split('.').pop().toLowerCase())) {
+                    removed.push('EXIF (GPS/相机/时间)', 'IPTC/XMP', 'ICC Profile', 'EXIF 缩略图', 'JPEG Comment', 'APP 标记段');
+                } else if (['png'].includes(selectedFile.name.split('.').pop().toLowerCase())) {
+                    removed.push('tEXt/iTXt/zTXt chunk', 'AI 水印数据', '时间戳 chunk', 'ICC Profile', 'gAMA/cHRM 等辅助 chunk');
+                } else {
+                    removed.push('所有元数据字段');
+                }
+                document.getElementById('statusDetail').innerHTML = '已清除: ' +
+                    removed.map(r => '<span>' + r + '</span>').join(' ');
+
+                statusBox.className = 'status-box success show';
+                document.getElementById('statusMsg').textContent = '✅ 元数据清除成功！图片已清理干净';
+                document.getElementById('downloadBtn').style.display = '';
+                document.getElementById('processBtn').style.display = 'none';
+
+                showToast('✅ 处理完成');
+            } catch (e) {
+                statusBox.className = 'status-box error show';
+                document.getElementById('statusMsg').textContent = '❌ ' + e.message;
+                showToast('❌ ' + e.message);
+            } finally {
+                btn.disabled = false; btn.textContent = '🧹 清除元数据';
+            }
+        }
+
+        function downloadImage() {
+            if (!cleanedBlob) { showToast('⚠️ 请先处理图片'); return; }
+            const url = URL.createObjectURL(cleanedBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = cleanedFilename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('💾 下载已开始');
+        }
+
+        function resetAll() {
+            selectedFile = null;
+            cleanedBlob = null;
+            document.getElementById('imageInput').value = '';
+            document.getElementById('dropZone').style.display = '';
+            document.getElementById('previewArea').classList.remove('show');
+            document.getElementById('statusBox').classList.remove('show');
+            document.getElementById('originalImg').src = '';
+            document.getElementById('cleanedImg').src = '';
+            document.getElementById('processBtn').style.display = '';
+            document.getElementById('downloadBtn').style.display = 'none';
+        }
+
+        // 拖拽支持
+        const dropZone = document.getElementById('dropZone');
+        ['dragover', 'dragenter'].forEach(evt => {
+            dropZone.addEventListener(evt, function(e) {
+                e.preventDefault();
+                this.classList.add('drag-over');
+            });
+        });
+        ['dragleave', 'drop'].forEach(evt => {
+            dropZone.addEventListener(evt, function(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+            });
+        });
+        dropZone.addEventListener('drop', function(e) {
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                document.getElementById('imageInput').files = e.dataTransfer.files;
+                handleImage(file);
+            }
+        });
+    </script>
+</body>
+</html>

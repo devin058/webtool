@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📋 查看分享</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh; color: #e2e8f0;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 60px 20px;
+        }
+        .card {
+            background: #1e293b; border: 1px solid #334155; border-radius: 16px;
+            padding: 32px; max-width: 800px; width: 100%;
+        }
+        .card h1 { font-size: 1.3rem; margin-bottom: 20px; color: #f1f5f9; }
+
+        .error-state { text-align: center; padding: 40px 0; }
+        .error-state .icon { font-size: 3rem; margin-bottom: 16px; }
+        .error-state p { color: #94a3b8; font-size: 1rem; }
+        .error-state a { color: #818cf8; }
+
+        .code-block {
+            background: #0f172a; border: 1px solid #334155; border-radius: 10px;
+            padding: 20px; overflow-x: auto; font-family: "JetBrains Mono", "Fira Code", monospace;
+            font-size: 0.9rem; line-height: 1.6; white-space: pre-wrap; word-break: break-all;
+            color: #e2e8f0;
+        }
+        .meta {
+            display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px;
+        }
+        .meta .tag {
+            background: #334155; color: #94a3b8; font-size: 0.75rem;
+            padding: 3px 10px; border-radius: 20px;
+        }
+        .btn-row { margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap; }
+        .btn {
+            background: #6366f1; color: #fff; border: none; border-radius: 8px;
+            padding: 10px 24px; font-size: 0.9rem; cursor: pointer;
+            transition: all 0.2s; font-weight: 500;
+        }
+        .btn:hover { background: #4f46e5; }
+        .btn-secondary { background: #334155; }
+        .btn-secondary:hover { background: #475569; }
+
+        .password-box {
+            text-align: center; padding: 30px 0;
+        }
+        .password-box input {
+            background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+            color: #e2e8f0; padding: 12px 16px; font-size: 1rem; width: 260px;
+            outline: none; margin-right: 10px;
+        }
+        .password-box input:focus { border-color: #6366f1; }
+        .password-error { color: #f87171; font-size: 0.85rem; margin-top: 10px; display: none; }
+
+        .toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: #10b981; color: #fff; padding: 10px 24px; border-radius: 8px;
+            font-size: 0.9rem; z-index: 999; opacity: 0; transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+    <div class="toast" id="toast"></div>
+
+    <div class="card">
+        {% if error %}
+        <div class="error-state">
+            <div class="icon">😕</div>
+            <p>{{ error }}</p>
+            <p style="margin-top:16px"><a href="/">← 返回首页</a></p>
+        </div>
+
+        {% elif need_password %}
+        <h1>🔒 此内容已加密</h1>
+        <div class="password-box">
+            <input type="text" id="pwdInput" placeholder="请输入访问密码" autofocus>
+            <button class="btn" onclick="unlock()">解锁</button>
+            <div class="password-error" id="pwdError">密码错误，请重试</div>
+        </div>
+
+        {% elif paste %}
+        <h1>📋 分享内容</h1>
+        <div class="meta">
+            <span class="tag">📅 {{ paste.created_at[:19] }}</span>
+            {% if paste.burn_after %}<span class="tag">🔥 阅后即焚</span>{% endif %}
+            {% if paste.expire_hours > 0 %}<span class="tag">⏰ {{ paste.expire_hours }}h 后过期</span>{% endif %}
+            {% if paste.password %}<span class="tag">🔒 已加密</span>{% endif %}
+        </div>
+        <div class="code-block">{{ paste.content }}</div>
+        <div class="btn-row">
+            <button class="btn btn-secondary" onclick="copyContent()">📋 复制内容</button>
+            <a href="/tool/netcut" style="text-decoration:none">
+                <button class="btn">📝 我也要创建</button>
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        function showToast(msg, duration=2000) {
+            const t = document.getElementById('toast');
+            t.textContent = msg; t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), duration);
+        }
+
+        function copyContent() {
+            const text = document.querySelector('.code-block').textContent;
+            navigator.clipboard.writeText(text).then(() => showToast('📋 已复制到剪贴板'))
+                .catch(() => showToast('❌ 复制失败'));
+        }
+
+        async function unlock() {
+            const pwd = document.getElementById('pwdInput').value;
+            const path = window.location.pathname;
+            const code = path.split('/p/')[1];
+
+            try {
+                const res = await fetch('/api/paste/' + code, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: pwd })
+                });
+                const data = await res.json();
+                if (data.error) {
+                    document.getElementById('pwdError').style.display = 'block';
+                    return;
+                }
+                // 刷新页面显示内容
+                location.reload();
+            } catch (e) {
+                document.getElementById('pwdError').style.display = 'block';
+            }
+        }
+
+        // 回车解锁
+        document.getElementById('pwdInput')?.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') unlock();
+        });
+    </script>
+</body>
+</html>

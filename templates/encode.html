@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔐 编解码工具</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh; color: #e2e8f0;
+        }
+        .container { max-width: 900px; margin: 0 auto; padding: 30px 20px; }
+
+        .top-bar {
+            display: flex; align-items: center; gap: 16px; margin-bottom: 32px;
+        }
+        .back-btn {
+            color: #94a3b8; text-decoration: none; font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+        .back-btn:hover { color: #e2e8f0; }
+        .top-bar h1 { font-size: 1.5rem; color: #f1f5f9; }
+
+        .card {
+            background: #1e293b; border: 1px solid #334155; border-radius: 16px;
+            padding: 28px; margin-bottom: 20px;
+        }
+
+        /* 模式切换 tab */
+        .tabs {
+            display: flex; gap: 0; margin-bottom: 24px;
+            background: #0f172a; border-radius: 10px; padding: 4px;
+        }
+        .tab {
+            flex: 1; text-align: center; padding: 10px; border-radius: 8px;
+            cursor: pointer; font-size: 0.9rem; font-weight: 500;
+            transition: all 0.2s; color: #94a3b8; border: none;
+            background: transparent;
+        }
+        .tab.active { background: #6366f1; color: #fff; }
+        .tab:hover:not(.active) { color: #e2e8f0; }
+
+        /* 文本区 */
+        .io-row {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+        }
+        .io-col label {
+            display: block; font-size: 0.85rem; color: #94a3b8;
+            margin-bottom: 8px; font-weight: 500;
+        }
+        textarea {
+            width: 100%; min-height: 220px; background: #0f172a;
+            border: 1px solid #334155; border-radius: 10px; color: #e2e8f0;
+            padding: 16px; font-size: 0.9rem;
+            font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+            resize: vertical; outline: none; transition: border-color 0.2s;
+        }
+        textarea:focus { border-color: #10b981; }
+
+        .btn-row {
+            display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap;
+            align-items: center;
+        }
+        .btn {
+            background: #10b981; color: #fff; border: none; border-radius: 8px;
+            padding: 10px 24px; font-size: 0.95rem; cursor: pointer;
+            transition: all 0.2s; font-weight: 500;
+        }
+        .btn:hover { background: #059669; transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+        .btn-secondary { background: #334155; }
+        .btn-secondary:hover { background: #475569; }
+        .btn-sm { padding: 6px 14px; font-size: 0.8rem; }
+
+        .swap-btn {
+            background: #334155; border: none; color: #e2e8f0; width: 40px;
+            height: 40px; border-radius: 50%; cursor: pointer; font-size: 1.2rem;
+            transition: all 0.2s; display: flex; align-items: center; justify-content: center;
+        }
+        .swap-btn:hover { background: #475569; transform: rotate(180deg); }
+
+        .divider {
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        .error-msg {
+            color: #f87171; font-size: 0.8rem; margin-top: 6px; display: none;
+        }
+        .error-msg.show { display: block; }
+
+        @media (max-width: 640px) {
+            .io-row { grid-template-columns: 1fr; }
+            .divider { display: none; }
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: #10b981; color: #fff; padding: 10px 24px; border-radius: 8px;
+            font-size: 0.9rem; z-index: 999; opacity: 0; transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-bar">
+            <a href="/" class="back-btn">← 返回首页</a>
+            <h1>🔐 编解码工具</h1>
+        </div>
+
+        <div class="card">
+            <div class="tabs">
+                <button class="tab active" data-mode="base64" onclick="switchMode('base64')">Base64</button>
+                <button class="tab" data-mode="url" onclick="switchMode('url')">URL 编码</button>
+                <button class="tab" data-mode="hex" onclick="switchMode('hex')">Hex</button>
+                <button class="tab" data-mode="unicode" onclick="switchMode('unicode')">Unicode</button>
+            </div>
+
+            <div class="io-row">
+                <div class="io-col">
+                    <label id="inputLabel">📥 明文</label>
+                    <textarea id="inputText" placeholder="输入要编码的文本..."></textarea>
+                </div>
+
+                <div class="divider">
+                    <button class="swap-btn" onclick="swapTexts()" title="交换内容">⇄</button>
+                </div>
+
+                <div class="io-col">
+                    <label id="outputLabel">📤 编码结果</label>
+                    <textarea id="outputText" placeholder="编码/解码结果..."></textarea>
+                    <div class="error-msg" id="errorMsg"></div>
+                </div>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn" id="encodeBtn" onclick="doEncode()">🔒 编码</button>
+                <button class="btn" id="decodeBtn" onclick="doDecode()">🔓 解码</button>
+                <button class="btn btn-secondary btn-sm" onclick="copyOutput()">📋 复制结果</button>
+                <button class="btn btn-secondary btn-sm" onclick="clearAll()">🗑 清空</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let currentMode = 'base64';
+
+        const modeConfig = {
+            base64: {
+                inputLabel: '📥 明文', outputLabel: '📤 Base64',
+                encode: s => {
+                    // 使用 UTF-8 编码，支持中文等 Unicode 字符
+                    const bytes = new TextEncoder().encode(String(s));
+                    const latin1 = Array.from(bytes, b => String.fromCharCode(b)).join('');
+                    return btoa(latin1);
+                },
+                decode: s => {
+                    const latin1 = atob(String(s));
+                    const bytes = new Uint8Array(latin1.length);
+                    for (let i = 0; i < latin1.length; i++) bytes[i] = latin1.charCodeAt(i);
+                    return new TextDecoder().decode(bytes);
+                }
+            },
+            url: {
+                inputLabel: '📥 明文', outputLabel: '📤 URL 编码',
+                encode: s => encodeURIComponent(s),
+                decode: s => decodeURIComponent(s)
+            },
+            hex: {
+                inputLabel: '📥 明文', outputLabel: '📤 Hex',
+                encode: s => Array.from(new TextEncoder().encode(s))
+                    .map(b => b.toString(16).padStart(2, '0')).join(''),
+                decode: s => {
+                    s = s.replace(/\s/g, '');
+                    if (s.length % 2 !== 0) throw new Error('Hex 长度必须为偶数');
+                    const bytes = new Uint8Array(s.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+                    return new TextDecoder().decode(bytes);
+                }
+            },
+            unicode: {
+                inputLabel: '📥 明文', outputLabel: '📤 Unicode 转义',
+                encode: s => Array.from(s).map(c =>
+                    '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0')
+                ).join(''),
+                decode: s => s.replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) =>
+                    String.fromCharCode(parseInt(hex, 16))
+                )
+            }
+        };
+
+        function switchMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
+            const cfg = modeConfig[mode];
+            document.getElementById('inputLabel').textContent = cfg.inputLabel;
+            document.getElementById('outputLabel').textContent = cfg.outputLabel;
+            hideError();
+        }
+
+        function doEncode() {
+            hideError();
+            const input = document.getElementById('inputText').value;
+            if (!input) { showToast('⚠️ 请输入内容'); return; }
+            try {
+                const result = modeConfig[currentMode].encode(input);
+                document.getElementById('outputText').value = result;
+                showToast('✅ 编码完成');
+            } catch (e) {
+                showError('编码失败: ' + e.message);
+            }
+        }
+
+        function doDecode() {
+            hideError();
+            const input = document.getElementById('outputText').value;
+            if (!input) {
+                // 尝试从输入框解码
+                const src = document.getElementById('inputText').value;
+                if (!src) { showToast('⚠️ 请输入要解码的内容'); return; }
+                try {
+                    const result = modeConfig[currentMode].decode(src);
+                    document.getElementById('outputText').value = result;
+                    showToast('✅ 解码完成');
+                } catch (e) {
+                    showError('解码失败: ' + e.message);
+                }
+                return;
+            }
+            try {
+                const result = modeConfig[currentMode].decode(input);
+                document.getElementById('inputText').value = result;
+                showToast('✅ 解码完成');
+            } catch (e) {
+                showError('解码失败: ' + e.message);
+            }
+        }
+
+        function swapTexts() {
+            const input = document.getElementById('inputText').value;
+            const output = document.getElementById('outputText').value;
+            document.getElementById('inputText').value = output;
+            document.getElementById('outputText').value = input;
+            hideError();
+        }
+
+        function copyOutput() {
+            const text = document.getElementById('outputText').value;
+            if (!text) { showToast('⚠️ 没有可复制的内容'); return; }
+            navigator.clipboard.writeText(text).then(() => showToast('📋 已复制到剪贴板'))
+                .catch(() => showToast('❌ 复制失败'));
+        }
+
+        function clearAll() {
+            document.getElementById('inputText').value = '';
+            document.getElementById('outputText').value = '';
+            hideError();
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('errorMsg');
+            el.textContent = msg; el.classList.add('show');
+        }
+        function hideError() {
+            document.getElementById('errorMsg').classList.remove('show');
+        }
+        function showToast(msg, duration=2000) {
+            const t = document.getElementById('toast');
+            t.textContent = msg; t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), duration);
+        }
+
+        // 支持回车键快速编码
+        document.getElementById('inputText').addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') doEncode();
+        });
+    </script>
+</body>
+</html>
