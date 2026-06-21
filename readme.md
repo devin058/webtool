@@ -6,7 +6,7 @@ A lightweight collection of web-based utility tools built with Flask. No registr
 
 | Tool | Description |
 |------|-------------|
-| Online Clipboard | Text & file sharing with password protection, burn-after-reading, and expiry |
+| Online Clipboard | Username-based workspace for text & file sharing with password protection, QR codes, and collaborative editing |
 | Encode/Decode | Base64 / URL / Hex / Unicode encoding and decoding |
 | Image EXIF Cleaner | Strip all EXIF/metadata/AI watermarks from images |
 | Todo List | Feature-rich task manager with priorities, categories, due dates, subtasks, search, and export |
@@ -30,22 +30,35 @@ Open **http://127.0.0.1:5000** in your browser.
 
 ## Online Clipboard
 
-### Text Sharing
-- Paste any text content (code, Markdown, etc.)
-- Supports password protection, burn-after-reading, and expiry (1 hour to 7 days)
-- Generates short shareable links
+### How It Works
+1. Go to **/tool/netcut** → enter a **username** + optional password → creates your workspace
+2. Your workspace lives at **/u/your-username** — this is your editing page AND share page
+3. Share the link. Others can view and download. If you set a password, they enter it to gain access — including editing rights.
+4. The same page handles everything: create text pastes, upload files, delete items, set/change password, generate QR codes.
 
-### File Sharing
-- Supports 30+ file formats (documents, images, archives, code files)
-- Max upload size: 50MB
-- Password, burn-after-reading, and expiry options
-- Drag-and-drop upload with progress bar
+### Features
+- **Username-based workspace** — one link shares everything, not per-item codes
+- **Password protection** — optional workspace password; anyone with the password can view AND edit
+- **QR code generation** — every item and workspace has a QR code button for easy mobile sharing
+- **Text sharing** — paste any text (code, Markdown, etc.) with optional burn-after-reading, expiry, and per-item password
+- **File sharing** — upload files up to 50MB in 30+ formats, same protection options
+- **Auto-login** — localStorage remembers your workspace; revisit /tool/netcut to jump straight back
+- **Collaborative** — password holders can create, upload, and delete items too
+
+### URL Structure
+
+| URL | Purpose |
+|-----|---------|
+| `/tool/netcut` | Login / create workspace (auto-redirects if remembered) |
+| `/u/<username>` | Workspace page — view + edit + share |
+| `/u/<username>/p/<id>` | View a specific text paste |
+| `/u/<username>/f/<id>/download` | Download a specific file |
 
 ## Encode/Decode Tool
 
 | Mode | Encode | Decode |
 |------|--------|--------|
-| Base64 | Text to Base64 (UTF-8 safe, supports Chinese) | Base64 to text |
+| Base64 | Text to Base64 (UTF-8 safe, supports CJK) | Base64 to text |
 | URL | Text to URL-encoded | URL-encoded to text |
 | Hex | Text to hexadecimal | Hexadecimal to text |
 | Unicode | Text to \uXXXX escapes | \uXXXX to text |
@@ -111,11 +124,25 @@ JPG / PNG / GIF / BMP / WebP / TIFF
 | DELETE | `/api/subtasks/<id>` | Delete subtask |
 | PATCH | `/api/subtasks/<id>/toggle` | Toggle subtask |
 
+## Clipboard API
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/user` | Create or login to workspace (sets session) |
+| POST | `/api/user/<u>/verify` | Verify workspace password (sets session) |
+| POST | `/api/user/<u>/set-password` | Set or remove workspace password |
+| GET | `/api/user/<u>/content` | List workspace content (pastes + files) |
+| POST | `/api/paste` | Create text paste (requires `user_id`) |
+| POST | `/api/file/upload` | Upload file (requires `user_id`) |
+| DELETE | `/api/paste/by-id/<id>` | Delete paste by ID |
+| DELETE | `/api/file/by-id/<id>` | Delete file by ID |
+
 ## Tech Stack
 
 - **Backend**: Python 3 + Flask
-- **Database**: SQLite
+- **Database**: SQLite (auto-created on first run)
 - **Image Processing**: Pillow (PIL)
+- **QR Codes**: api.qrserver.com (client-side, no extra dependency)
 - **Frontend**: Vanilla HTML/CSS/JS, no framework dependencies
 - **Theme**: Dark mode (Tailwind-inspired color palette)
 
@@ -123,30 +150,31 @@ JPG / PNG / GIF / BMP / WebP / TIFF
 
 ```
 claude_code_test/
-├── app.py                  # Flask main (routes + API + DB)
-├── data.db                 # SQLite database
+├── app.py                  # Flask main (routes + API + DB init)
+├── data.db                 # SQLite database (auto-created, gitignored)
 ├── requirements.txt        # Python dependencies
 ├── README.md
+├── .gitignore
 ├── templates/
 │   ├── index.html          # Home page (tool cards)
-│   ├── netcut.html         # Online clipboard
+│   ├── netcut.html         # Clipboard login page
+│   ├── workspace.html      # Clipboard workspace (edit + share)
 │   ├── encode.html         # Encode/decode tool
 │   ├── exif.html           # Image EXIF cleaner
 │   ├── todo.html           # Todo list
-│   ├── view.html           # Text share view page
-│   └── view_file.html      # File share view page
-├── files/                  # Uploaded file storage
-└── uploads/                # Upload temp directory
+│   ├── view.html           # Legacy text view (backward compat)
+│   └── view_file.html      # Legacy file view (backward compat)
+├── files/                  # Uploaded file storage (gitignored)
+└── uploads/                # Upload temp directory (gitignored)
 ```
 
 ## Notes
 
 - This is a local development tool running with `debug=True`
 - Use Gunicorn/uWSGI for production deployment
+- `data.db` is auto-created on first run — do not commit to version control
 - Uploaded files are stored locally in `files/`, clean up periodically
-- The `data.db` file contains all shared content and todo data
 
 ## License
 
 MIT
-

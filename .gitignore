@@ -1,1 +1,22 @@
+# 自动生成的数据库
+data.db
+
+# 上传的文件
 files/*
+!files/.gitkeep
+
+# 临时上传目录
+uploads/*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.vscode/
+.idea/
+
+# 系统
+.DS_Store
+Thumbs.db
