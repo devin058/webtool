@@ -10,7 +10,7 @@ import json
 import uuid
 import hashlib
 from datetime import datetime, timedelta, timezone
-from flask import Flask, render_template, request, jsonify, g, send_file, send_from_directory
+from flask import Flask, render_template, request, jsonify, g, send_file, send_from_directory, session
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24).hex()
@@ -85,6 +85,21 @@ def init_db():
             created_at TEXT DEFAULT (datetime('now')),
             FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE
         )''')
+        db.execute('''CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now'))
+        )''')
+        # 迁移：为旧表添加 user_id 列（忽略已存在的错误）
+        try:
+            db.execute("ALTER TABLE pastes ADD COLUMN user_id INTEGER REFERENCES users(id)")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            db.execute("ALTER TABLE files ADD COLUMN user_id INTEGER REFERENCES users(id)")
+        except sqlite3.OperationalError:
+            pass
         db.commit()
 
 # ── 工具函数 ────────────────────────────────────────────
@@ -172,17 +187,19 @@ def create_paste():
         return jsonify({'error': '内容过长，最多 50000 字'}), 400
 
     code = generate_code()
+    user_id = data.get('user_id')  # 可选，新工作区模式下传入
     db = get_db()
-    db.execute('''INSERT INTO pastes (code, content, syntax, password, burn_after, expire_hours)
-                  VALUES (?, ?, ?, ?, ?, ?)''',
+    db.execute('''INSERT INTO pastes (code, content, syntax, password, burn_after, expire_hours, user_id)
+                  VALUES (?, ?, ?, ?, ?, ?, ?)''',
                (code, content,
                 data.get('syntax', 'plain'),
                 data.get('password', ''),
                 data.get('burn_after', 0),
-                data.get('expire_hours', 0)))
+                data.get('expire_hours', 0),
+                user_id))
     db.commit()
 
-    return jsonify({'code': code, 'url': f'/p/{code}'})
+    return jsonify({'code': code, 'url': f'/p/{code}', 'id': db.execute("SELECT id FROM pastes WHERE code=?", (code,)).fetchone()['id']})
 
 @app.route('/p/<code>')
 def view_paste(code):
@@ -257,15 +274,17 @@ def upload_file():
     file_size = os.path.getsize(save_path)
 
     db = get_db()
-    db.execute('''INSERT INTO files (code, filename, original_name, file_size, password, burn_after, expire_hours)
-                  VALUES (?, ?, ?, ?, ?, ?, ?)''',
+    user_id = request.form.get('user_id')
+    db.execute('''INSERT INTO files (code, filename, original_name, file_size, password, burn_after, expire_hours, user_id)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
                (code, save_name, f.filename, file_size,
                 request.form.get('password', ''),
                 int(request.form.get('burn_after', 0)),
-                int(request.form.get('expire_hours', 0))))
+                int(request.form.get('expire_hours', 0)),
+                user_id))
     db.commit()
 
-    return jsonify({'code': code, 'url': f'/f/{code}', 'filename': f.filename, 'size': file_size})
+    return jsonify({'code': code, 'url': f'/f/{code}', 'filename': f.filename, 'size': file_size, 'id': db.execute("SELECT id FROM files WHERE code=?", (code,)).fetchone()['id']})
 
 @app.route('/f/<code>')
 def view_file(code):
@@ -327,6 +346,226 @@ def download_file(code):
         return jsonify({'error': '文件已被删除'}), 404
 
     return send_from_directory(FILES_DIR, f['filename'], as_attachment=True, download_name=f['original_name'])
+
+# ── 按 ID 删除 API ────────────────────────────────────────
+
+@app.route('/api/paste/by-id/<int:paste_id>', methods=['DELETE'])
+def delete_paste_by_id(paste_id):
+    db = get_db()
+    paste = db.execute("SELECT * FROM pastes WHERE id=?", (paste_id,)).fetchone()
+    if not paste:
+        return jsonify({'error': '不存在'}), 404
+    db.execute("DELETE FROM pastes WHERE id=?", (paste_id,))
+    db.commit()
+    return jsonify({'ok': True})
+
+@app.route('/api/file/by-id/<int:file_id>', methods=['DELETE'])
+def delete_file_by_id(file_id):
+    db = get_db()
+    f = db.execute("SELECT * FROM files WHERE id=?", (file_id,)).fetchone()
+    if not f:
+        return jsonify({'error': '不存在'}), 404
+    file_path = os.path.join(FILES_DIR, f['filename'])
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    db.execute("DELETE FROM files WHERE id=?", (file_id,))
+    db.commit()
+    return jsonify({'ok': True})
+
+
+# ── 用户工作区 API ────────────────────────────────────────
+
+@app.route('/api/user', methods=['POST'])
+def api_user():
+    """创建或登录用户工作区"""
+    data = request.get_json()
+    if not data or not data.get('username', '').strip():
+        return jsonify({'error': '用户名不能为空'}), 400
+
+    username = data['username'].strip().lower()
+    if len(username) < 2 or len(username) > 30:
+        return jsonify({'error': '用户名需 2-30 个字符'}), 400
+    if not username.replace('-', '').replace('_', '').isalnum():
+        return jsonify({'error': '用户名只能包含字母、数字、-、_'}), 400
+
+    password = data.get('password', '').strip()
+    db = get_db()
+
+    existing = db.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+    if existing:
+        # 登录：如果设了密码则需验证
+        if existing['password'] and existing['password'] != password:
+            return jsonify({'error': '密码错误'}), 403
+        user = dict(existing)
+    else:
+        # 创建新用户
+        db.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
+        db.commit()
+        user = dict(db.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone())
+
+    # 登录成功：设置工作区 session（跳过密码再次验证）
+    session[f'ws_{user["username"]}'] = user['password']
+
+    # 获取该用户的文本和文件
+    pastes = db.execute(
+        "SELECT * FROM pastes WHERE user_id=? ORDER BY created_at DESC", (user['id'],)
+    ).fetchall()
+    files = db.execute(
+        "SELECT * FROM files WHERE user_id=? ORDER BY created_at DESC", (user['id'],)
+    ).fetchall()
+
+    return jsonify({
+        'user': user,
+        'pastes': [dict(p) for p in pastes],
+        'files': [dict(f) for f in files],
+        'url': f'/u/{username}'
+    })
+
+
+@app.route('/api/user/<username>/set-password', methods=['POST'])
+def api_user_set_password(username):
+    """设置或修改工作区密码"""
+    db = get_db()
+    user = db.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+    if not user:
+        return jsonify({'error': '用户不存在'}), 404
+    data = request.get_json()
+    new_password = data.get('password', '').strip()
+    db.execute("UPDATE users SET password=? WHERE username=?", (new_password, username))
+    db.commit()
+    return jsonify({'ok': True, 'has_password': bool(new_password)})
+
+
+@app.route('/api/user/<username>/verify', methods=['POST'])
+def api_user_verify(username):
+    """验证访问密码"""
+    db = get_db()
+    user = db.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+    if not user:
+        return jsonify({'error': '用户不存在'}), 404
+    data = request.get_json()
+    if user['password'] and user['password'] != data.get('password', ''):
+        return jsonify({'error': '密码错误'}), 403
+    # 验证通过，写入 session
+    session[f'ws_{user["username"]}'] = user['password']
+    return jsonify({'ok': True})
+
+
+@app.route('/u/<username>')
+def view_user_workspace(username):
+    """公开工作区页面 - 展示用户全部的文本和文件"""
+    clean_expired()
+    db = get_db()
+    user = db.execute("SELECT * FROM users WHERE LOWER(username)=?", (username.lower(),)).fetchone()
+    if not user:
+        return render_template('view.html', error='该用户不存在'), 404
+
+    user = dict(user)
+    # 密码保护检查
+    ws_key = f'ws_{user["username"]}'
+    if user['password'] and session.get(ws_key) != user['password']:
+        return render_template('workspace.html', user=user, need_password=True, pastes=[], files=[])
+
+    pastes = db.execute(
+        "SELECT * FROM pastes WHERE user_id=? ORDER BY created_at DESC", (user['id'],)
+    ).fetchall()
+    files = db.execute(
+        "SELECT * FROM files WHERE user_id=? ORDER BY created_at DESC", (user['id'],)
+    ).fetchall()
+
+    return render_template('workspace.html',
+                           user=user,
+                           pastes=[dict(p) for p in pastes],
+                           files=[dict(f) for f in files])
+
+
+@app.route('/u/<username>/p/<int:pid>')
+def view_user_paste(username, pid):
+    """查看工作区中的某个文本"""
+    clean_expired()
+    db = get_db()
+    user = db.execute("SELECT * FROM users WHERE LOWER(username)=?", (username.lower(),)).fetchone()
+    if not user:
+        return render_template('view.html', error='该用户不存在'), 404
+
+    # 工作区密码检查
+    user = dict(user)
+    ws_key = f'ws_{user["username"]}'
+    if user['password'] and session.get(ws_key) != user['password']:
+        return render_template('workspace.html', user=user, need_password=True, pastes=[], files=[])
+
+    paste = db.execute("SELECT * FROM pastes WHERE id=? AND user_id=?", (pid, user['id'])).fetchone()
+    if not paste:
+        return render_template('view.html', error='内容不存在或已过期'), 404
+
+    paste = dict(paste)
+    if paste['password']:
+        return render_template('view.html', code=paste['code'], need_password=True)
+
+    if paste['burn_after']:
+        db.execute("DELETE FROM pastes WHERE id=?", (pid,))
+        db.commit()
+
+    return render_template('view.html', paste=paste)
+
+
+@app.route('/u/<username>/f/<int:fid>/download')
+def download_user_file(username, fid):
+    """下载工作区中的某个文件"""
+    clean_expired()
+    db = get_db()
+    user = db.execute("SELECT * FROM users WHERE LOWER(username)=?", (username.lower(),)).fetchone()
+    if not user:
+        return render_template('view_file.html', error='该用户不存在'), 404
+
+    # 工作区密码检查
+    user = dict(user)
+    ws_key = f'ws_{user["username"]}'
+    if user['password'] and session.get(ws_key) != user['password']:
+        return render_template('workspace.html', user=user, need_password=True, pastes=[], files=[])
+
+    f = db.execute("SELECT * FROM files WHERE id=? AND user_id=?", (fid, user['id'])).fetchone()
+    if not f:
+        return render_template('view_file.html', error='文件不存在或已过期'), 404
+
+    f = dict(f)
+    file_path = os.path.join(FILES_DIR, f['filename'])
+    if not os.path.exists(file_path):
+        return render_template('view_file.html', error='文件已被删除'), 404
+
+    if f['password']:
+        return render_template('view_file.html', code=f['code'], need_password=True, file=f)
+
+    if f['burn_after']:
+        db.execute("DELETE FROM files WHERE id=?", (fid,))
+        db.commit()
+
+    return send_from_directory(FILES_DIR, f['filename'], as_attachment=True, download_name=f['original_name'])
+
+
+@app.route('/api/user/<username>/content')
+def api_user_content(username):
+    """API: 获取用户工作区内容列表"""
+    db = get_db()
+    user = db.execute("SELECT * FROM users WHERE LOWER(username)=?", (username.lower(),)).fetchone()
+    if not user:
+        return jsonify({'error': '用户不存在'}), 404
+
+    pastes = db.execute(
+        "SELECT id, code, substr(content, 1, 100) as preview, syntax, password, burn_after, expire_hours, created_at FROM pastes WHERE user_id=? ORDER BY created_at DESC",
+        (user['id'],)
+    ).fetchall()
+    files = db.execute(
+        "SELECT id, code, original_name, file_size, password, burn_after, expire_hours, created_at FROM files WHERE user_id=? ORDER BY created_at DESC",
+        (user['id'],)
+    ).fetchall()
+
+    return jsonify({
+        'user': dict(user),
+        'pastes': [dict(p) for p in pastes],
+        'files': [dict(f) for f in files]
+    })
+
 
 # ── EXIF 清除 API ───────────────────────────────────────
 

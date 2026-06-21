@@ -10,86 +10,37 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
             min-height: 100vh; color: #e2e8f0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 40px 20px;
         }
-        .container { max-width: 800px; margin: 0 auto; padding: 30px 20px; }
-        .top-bar { display: flex; align-items: center; gap: 16px; margin-bottom: 32px; }
-        .back-btn { color: #94a3b8; text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
-        .back-btn:hover { color: #e2e8f0; }
-        .top-bar h1 { font-size: 1.5rem; color: #f1f5f9; }
+        .top-bar { margin-bottom: 30px; text-align: center; }
+        .top-bar a { color: #94a3b8; text-decoration: none; font-size: 0.9rem; }
+        .top-bar a:hover { color: #e2e8f0; }
+        .top-bar h1 { font-size: 1.5rem; color: #f1f5f9; margin-top: 8px; }
 
-        .card { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 28px; margin-bottom: 20px; }
-        .card h2 { font-size: 1.1rem; margin-bottom: 16px; color: #f1f5f9; }
-
-        /* 模式切换 */
-        .mode-tabs { display: flex; gap: 0; margin-bottom: 20px; background: #0f172a; border-radius: 10px; padding: 4px; }
-        .mode-tab { flex: 1; text-align: center; padding: 10px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; color: #94a3b8; border: none; background: transparent; }
-        .mode-tab.active { background: #6366f1; color: #fff; }
-        .mode-tab:hover:not(.active) { color: #e2e8f0; }
-
-        textarea {
-            width: 100%; min-height: 260px; background: #0f172a; border: 1px solid #334155;
-            border-radius: 10px; color: #e2e8f0; padding: 16px; font-size: 0.95rem;
-            font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
-            resize: vertical; outline: none; transition: border-color 0.2s;
+        .card {
+            background: #1e293b; border: 1px solid #334155; border-radius: 16px;
+            padding: 36px 32px; max-width: 420px; width: 100%; text-align: center;
         }
-        textarea:focus { border-color: #6366f1; }
+        .card .icon { font-size: 3.5rem; margin-bottom: 12px; }
+        .card h2 { color: #f1f5f9; font-size: 1.2rem; margin-bottom: 6px; }
+        .card .hint { color: #64748b; font-size: 0.85rem; margin-bottom: 28px; line-height: 1.6; }
 
-        .options { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; align-items: center; }
-        .options label { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #94a3b8; cursor: pointer; }
-        .options input[type="checkbox"] { accent-color: #6366f1; }
-        .options select, .options input[type="text"] {
-            background: #0f172a; border: 1px solid #334155; border-radius: 6px;
-            color: #e2e8f0; padding: 6px 10px; font-size: 0.85rem; outline: none;
+        .form-group { margin-bottom: 14px; text-align: left; }
+        .form-group label { display: block; font-size: 0.8rem; color: #94a3b8; margin-bottom: 6px; font-weight: 500; }
+        .form-group input {
+            width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+            color: #e2e8f0; padding: 12px 16px; font-size: 0.95rem; outline: none;
+            transition: border-color 0.2s;
         }
-        .options select:focus, .options input[type="text"]:focus { border-color: #6366f1; }
-        .options input[type="text"] { width: 120px; }
+        .form-group input:focus { border-color: #6366f1; }
 
         .btn {
-            background: #6366f1; color: #fff; border: none; border-radius: 8px;
-            padding: 10px 24px; font-size: 0.95rem; cursor: pointer;
-            transition: all 0.2s; font-weight: 500;
+            border: none; border-radius: 8px; padding: 12px 24px; font-size: 1rem;
+            cursor: pointer; transition: all 0.2s; font-weight: 500;
         }
-        .btn:hover { background: #4f46e5; transform: translateY(-1px); }
-        .btn:active { transform: translateY(0); }
-        .btn:disabled { background: #475569; cursor: not-allowed; transform: none; }
-        .btn-secondary { background: #334155; }
-        .btn-secondary:hover { background: #475569; }
-        .btn-row { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
-
-        .result-box { background: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 20px; margin-top: 16px; display: none; }
-        .result-box.show { display: block; }
-        .result-url { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .result-url a { color: #818cf8; font-size: 1.1rem; word-break: break-all; text-decoration: none; }
-        .result-url a:hover { text-decoration: underline; }
-        .result-meta { color: #94a3b8; font-size: 0.8rem; margin-top: 8px; }
-
-        /* 文件上传区域 */
-        .drop-zone {
-            border: 2px dashed #334155; border-radius: 12px; padding: 40px;
-            text-align: center; cursor: pointer; transition: all 0.2s;
-            margin-bottom: 16px;
-        }
-        .drop-zone:hover, .drop-zone.drag-over { border-color: #6366f1; background: rgba(99,102,241,0.05); }
-        .drop-zone .icon { font-size: 2.5rem; margin-bottom: 12px; }
-        .drop-zone p { color: #94a3b8; font-size: 0.9rem; }
-        .drop-zone .hint { color: #64748b; font-size: 0.75rem; margin-top: 6px; }
-        .drop-zone input { display: none; }
-        .file-info { display: none; background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
-        .file-info.show { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
-        .file-info .name { color: #e2e8f0; font-size: 0.9rem; word-break: break-all; }
-        .file-info .size { color: #94a3b8; font-size: 0.8rem; }
-        .file-info .remove { background: #ef4444; color: #fff; border: none; border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 0.8rem; }
-
-        .progress-bar { display: none; height: 4px; background: #334155; border-radius: 2px; margin-top: 12px; overflow: hidden; }
-        .progress-bar.show { display: block; }
-        .progress-bar .fill { height: 100%; background: #6366f1; width: 0%; transition: width 0.3s; }
-
-        .lookup-row { display: flex; gap: 10px; }
-        .lookup-row input {
-            flex: 1; background: #0f172a; border: 1px solid #334155; border-radius: 8px;
-            color: #e2e8f0; padding: 10px 14px; font-size: 0.9rem; outline: none;
-        }
-        .lookup-row input:focus { border-color: #6366f1; }
+        .btn-primary { background: #6366f1; color: #fff; width: 100%; }
+        .btn-primary:hover { background: #4f46e5; }
 
         .toast {
             position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
@@ -98,294 +49,72 @@
             pointer-events: none;
         }
         .toast.show { opacity: 1; }
-
-        .hidden { display: none !important; }
-
-        @media (max-width: 600px) {
-            .options { flex-direction: column; align-items: flex-start; }
-            .container { padding: 16px 12px; }
-        }
+        .toast.error { background: #ef4444; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="top-bar">
-            <a href="/" class="back-btn">← 返回首页</a>
-            <h1>📋 在线剪切板</h1>
+    <div class="top-bar">
+        <a href="/">← 返回首页</a>
+        <h1>📋 在线剪切板</h1>
+    </div>
+
+    <div class="card">
+        <div class="icon">📋</div>
+        <h2>进入你的工作区</h2>
+        <p class="hint">文本和文件都会归入同一个工作区<br>一个链接即可分享全部内容</p>
+        <div class="form-group">
+            <label>👤 用户名</label>
+            <input type="text" id="loginUsername" placeholder="2-30位字母/数字/-/_" maxlength="30" autofocus>
         </div>
-
-        <!-- 创建粘贴 -->
-        <div class="card">
-            <div class="mode-tabs">
-                <button class="mode-tab active" onclick="switchMode('text')">📝 文本分享</button>
-                <button class="mode-tab" onclick="switchMode('file')">📎 文件分享</button>
-            </div>
-
-            <!-- 文本模式 -->
-            <div id="textMode">
-                <textarea id="content" placeholder="在此粘贴文本内容...&#10;&#10;支持纯文本、代码片段、Markdown 等"></textarea>
-                <div class="options">
-                    <label><input type="checkbox" id="burn_after"> 阅后即焚</label>
-                    <label style="gap:4px"><span>过期时间</span>
-                        <select id="expire">
-                            <option value="0">永不过期</option>
-                            <option value="1">1 小时</option>
-                            <option value="6">6 小时</option>
-                            <option value="24">24 小时</option>
-                            <option value="72">3 天</option>
-                            <option value="168">7 天</option>
-                        </select>
-                    </label>
-                    <label style="gap:4px"><span>密码</span>
-                        <input type="text" id="password" placeholder="留空则无需密码">
-                    </label>
-                </div>
-                <div class="btn-row">
-                    <button class="btn" id="createBtn" onclick="createPaste()">🔗 生成分享链接</button>
-                    <button class="btn btn-secondary" onclick="clearText()">清空</button>
-                </div>
-                <div class="result-box" id="resultBox">
-                    <div class="result-url">
-                        <span style="color:#94a3b8">链接：</span>
-                        <a id="resultLink" href="#" target="_blank"></a>
-                        <button class="btn btn-secondary" style="padding:4px 12px;font-size:0.8rem" onclick="copyLink()">复制</button>
-                    </div>
-                    <div class="result-meta" id="resultMeta"></div>
-                </div>
-            </div>
-
-            <!-- 文件模式 -->
-            <div id="fileMode" class="hidden">
-                <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-                    <div class="icon">📁</div>
-                    <p>点击选择文件 或拖拽文件到此处</p>
-                    <p class="hint">支持常见文档、图片、压缩包、代码文件等，最大 50MB</p>
-                    <input type="file" id="fileInput" onchange="handleFileSelect(this.files[0])">
-                </div>
-                <div class="file-info" id="fileInfo">
-                    <span class="name" id="fileName"></span>
-                    <span class="size" id="fileSize"></span>
-                    <button class="remove" onclick="removeFile()">✕ 移除</button>
-                </div>
-                <div class="progress-bar" id="progressBar"><div class="fill" id="progressFill"></div></div>
-
-                <div class="options">
-                    <label><input type="checkbox" id="file_burn_after"> 阅后即焚</label>
-                    <label style="gap:4px"><span>过期时间</span>
-                        <select id="file_expire">
-                            <option value="0">永不过期</option>
-                            <option value="1">1 小时</option>
-                            <option value="6">6 小时</option>
-                            <option value="24">24 小时</option>
-                            <option value="72">3 天</option>
-                            <option value="168">7 天</option>
-                        </select>
-                    </label>
-                    <label style="gap:4px"><span>密码</span>
-                        <input type="text" id="file_password" placeholder="留空则无需密码">
-                    </label>
-                </div>
-                <div class="btn-row">
-                    <button class="btn" id="uploadBtn" onclick="uploadFile()">📤 上传并分享</button>
-                </div>
-                <div class="result-box" id="fileResultBox">
-                    <div class="result-url">
-                        <span style="color:#94a3b8">链接：</span>
-                        <a id="fileResultLink" href="#" target="_blank"></a>
-                        <button class="btn btn-secondary" style="padding:4px 12px;font-size:0.8rem" onclick="copyFileLink()">复制</button>
-                    </div>
-                    <div class="result-meta" id="fileResultMeta"></div>
-                </div>
-            </div>
+        <div class="form-group">
+            <label>🔒 访问密码 <span style="color:#64748b;font-weight:400">（可选，设密码后他人需凭密码访问和编辑）</span></label>
+            <input type="password" id="loginPassword" placeholder="留空则公开访问">
         </div>
-
-        <!-- 查看分享 -->
-        <div class="card">
-            <h2>📖 查看分享</h2>
-            <div class="lookup-row">
-                <input type="text" id="lookupCode" placeholder="输入分享码或链接...">
-                <button class="btn" onclick="lookupPaste()">查看</button>
-            </div>
-        </div>
+        <button class="btn btn-primary" onclick="doLogin()">🚀 进入工作区</button>
     </div>
 
     <div class="toast" id="toast"></div>
 
     <script>
-        let selectedFile = null;
+        function showToast(msg, isErr) { var t = document.getElementById('toast'); t.textContent = msg; t.className = 'toast' + (isErr ? ' error' : '') + ' show'; setTimeout(function(){ t.classList.remove('show'); }, 2200); }
 
-        function showToast(msg, duration=2000) {
-            const t = document.getElementById('toast');
-            t.textContent = msg; t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), duration);
-        }
+        async function doLogin() {
+            var username = document.getElementById('loginUsername').value.trim();
+            if (!username) { showToast('请输入用户名', true); return; }
+            if (username.length < 2) { showToast('用户名至少2个字符', true); return; }
+            var password = document.getElementById('loginPassword').value.trim();
 
-        function switchMode(mode) {
-            document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
-            document.querySelector(`.mode-tab:${mode === 'text' ? 'first' : 'last'}-child`).classList.add('active');
-            // Simpler:
-            const tabs = document.querySelectorAll('.mode-tab');
-            tabs[0].classList.toggle('active', mode === 'text');
-            tabs[1].classList.toggle('active', mode === 'file');
-            document.getElementById('textMode').classList.toggle('hidden', mode !== 'text');
-            document.getElementById('fileMode').classList.toggle('hidden', mode !== 'file');
-        }
-
-        // ── 文本分享 ──
-        async function createPaste() {
-            const content = document.getElementById('content').value;
-            if (!content.trim()) { showToast('⚠️ 请输入内容'); return; }
-            const btn = document.getElementById('createBtn');
-            btn.disabled = true; btn.textContent = '创建中...';
             try {
-                const res = await fetch('/api/paste', {
+                var res = await fetch('/api/user', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        content: content,
-                        burn_after: document.getElementById('burn_after').checked ? 1 : 0,
-                        expire_hours: parseInt(document.getElementById('expire').value),
-                        password: document.getElementById('password').value
-                    })
+                    body: JSON.stringify({ username: username, password: password })
                 });
-                const data = await res.json();
-                if (data.error) { showToast('❌ ' + data.error); return; }
-                const fullUrl = window.location.origin + data.url;
-                document.getElementById('resultLink').href = fullUrl;
-                document.getElementById('resultLink').textContent = fullUrl;
-                document.getElementById('resultMeta').textContent = '分享码: ' + data.code + ' · 点击链接即可查看';
-                document.getElementById('resultBox').classList.add('show');
-                showToast('✅ 分享链接已生成');
-            } catch (e) {
-                showToast('❌ 网络错误');
-            } finally {
-                btn.disabled = false; btn.textContent = '🔗 生成分享链接';
-            }
+                var data = await res.json();
+                if (!res.ok) { showToast(data.error, true); return; }
+
+                // 记住登录
+                localStorage.setItem('ws_user', JSON.stringify({username: data.user.username, password: password}));
+                window.location.href = '/u/' + data.user.username;
+            } catch (e) { showToast('网络错误', true); }
         }
 
-        function copyLink() {
-            const url = document.getElementById('resultLink').textContent;
-            navigator.clipboard.writeText(url).then(() => showToast('📋 已复制'))
-                .catch(() => showToast('❌ 复制失败'));
-        }
+        // 自动跳转
+        (function() {
+            var saved = localStorage.getItem('ws_user');
+            if (!saved) return;
+            try {
+                var user = JSON.parse(saved);
+                fetch('/api/user', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user.username, password: user.password || '' })
+                }).then(function(r){ return r.json(); }).then(function(d){
+                    if (!d.error) window.location.href = '/u/' + d.user.username;
+                }).catch(function(){});
+            } catch(e) {}
+        })();
 
-        function clearText() {
-            document.getElementById('content').value = '';
-            document.getElementById('burn_after').checked = false;
-            document.getElementById('expire').value = '0';
-            document.getElementById('password').value = '';
-            document.getElementById('resultBox').classList.remove('show');
-        }
-
-        // ── 文件分享 ──
-        function handleFileSelect(file) {
-            if (!file) return;
-            selectedFile = file;
-            document.getElementById('fileName').textContent = file.name;
-            document.getElementById('fileSize').textContent = formatSize(file.size);
-            document.getElementById('fileInfo').classList.add('show');
-            document.getElementById('dropZone').style.display = 'none';
-        }
-
-        function removeFile() {
-            selectedFile = null;
-            document.getElementById('fileInput').value = '';
-            document.getElementById('fileInfo').classList.remove('show');
-            document.getElementById('dropZone').style.display = '';
-            document.getElementById('fileResultBox').classList.remove('show');
-        }
-
-        function formatSize(bytes) {
-            if (bytes < 1024) return bytes + ' B';
-            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-            return (bytes / 1048576).toFixed(1) + ' MB';
-        }
-
-        async function uploadFile() {
-            if (!selectedFile) { showToast('⚠️ 请先选择文件'); return; }
-            const btn = document.getElementById('uploadBtn');
-            btn.disabled = true; btn.textContent = '上传中...';
-
-            const formData = new FormData();
-            formData.append('file', selectedFile);
-            formData.append('burn_after', document.getElementById('file_burn_after').checked ? '1' : '0');
-            formData.append('expire_hours', document.getElementById('file_expire').value);
-            formData.append('password', document.getElementById('file_password').value);
-
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', '/api/file/upload');
-
-            xhr.upload.onprogress = function(e) {
-                if (e.lengthComputable) {
-                    const pct = Math.round((e.loaded / e.total) * 100);
-                    document.getElementById('progressBar').classList.add('show');
-                    document.getElementById('progressFill').style.width = pct + '%';
-                }
-            };
-
-            xhr.onload = function() {
-                document.getElementById('progressBar').classList.remove('show');
-                try {
-                    const data = JSON.parse(xhr.responseText);
-                    if (data.error) { showToast('❌ ' + data.error); return; }
-                    const fullUrl = window.location.origin + data.url;
-                    document.getElementById('fileResultLink').href = fullUrl;
-                    document.getElementById('fileResultLink').textContent = fullUrl;
-                    document.getElementById('fileResultMeta').textContent =
-                        '文件: ' + data.filename + ' · ' + formatSize(data.size) + ' · 分享码: ' + data.code;
-                    document.getElementById('fileResultBox').classList.add('show');
-                    showToast('✅ 文件分享链接已生成');
-                } catch (e) {
-                    showToast('❌ 上传失败');
-                }
-            };
-
-            xhr.onerror = function() { showToast('❌ 网络错误'); };
-            xhr.onloadend = function() {
-                btn.disabled = false; btn.textContent = '📤 上传并分享';
-            };
-
-            xhr.send(formData);
-        }
-
-        function copyFileLink() {
-            const url = document.getElementById('fileResultLink').textContent;
-            navigator.clipboard.writeText(url).then(() => showToast('📋 已复制'))
-                .catch(() => showToast('❌ 复制失败'));
-        }
-
-        // ── 拖拽上传 ──
-        const dropZone = document.getElementById('dropZone');
-        if (dropZone) {
-            dropZone.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                this.classList.add('drag-over');
-            });
-            dropZone.addEventListener('dragleave', function() {
-                this.classList.remove('drag-over');
-            });
-            dropZone.addEventListener('drop', function(e) {
-                e.preventDefault();
-                this.classList.remove('drag-over');
-                const file = e.dataTransfer.files[0];
-                if (file) {
-                    document.getElementById('fileInput').files = e.dataTransfer.files;
-                    handleFileSelect(file);
-                }
-            });
-        }
-
-        // ── 查看分享 ──
-        function lookupPaste() {
-            let code = document.getElementById('lookupCode').value.trim();
-            if (!code) { showToast('⚠️ 请输入分享码或链接'); return; }
-            const match = code.match(/\/(p|f)\/([a-zA-Z0-9]+)/);
-            if (match) {
-                window.open('/' + match[1] + '/' + match[2], '_blank');
-            } else {
-                // 尝试作为 p 访问
-                window.open('/p/' + code, '_blank');
-            }
-        }
+        document.getElementById('loginUsername').addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
+        document.getElementById('loginPassword').addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
     </script>
 </body>
 </html>

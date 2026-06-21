@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📋 {{ user.username }} 的工作区</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh; color: #e2e8f0;
+        }
+        .container { max-width: 900px; margin: 0 auto; padding: 30px 20px; }
+
+        .top-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+        .top-bar a { color: #94a3b8; text-decoration: none; font-size: 0.9rem; }
+        .top-bar a:hover { color: #e2e8f0; }
+        .top-bar h1 { font-size: 1.4rem; color: #f1f5f9; }
+
+        /* 共享栏 */
+        .share-bar {
+            background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+            padding: 12px 18px; margin-bottom: 16px; display: flex; align-items: center;
+            gap: 10px; flex-wrap: wrap;
+        }
+        .share-bar .label { font-size: 0.8rem; color: #94a3b8; white-space: nowrap; }
+        .share-bar .ws-url { color: #818cf8; font-size: 0.8rem; flex: 1; min-width: 0; word-break: break-all; }
+        .share-bar .lock-status { font-size: 0.75rem; padding: 3px 10px; border-radius: 10px; }
+
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 28px; margin-bottom: 20px; }
+
+        .btn {
+            border: none; border-radius: 8px; padding: 9px 16px; font-size: 0.85rem;
+            cursor: pointer; transition: all 0.2s; font-weight: 500; white-space: nowrap;
+        }
+        .btn-primary { background: #6366f1; color: #fff; }
+        .btn-primary:hover { background: #4f46e5; }
+        .btn-danger { background: #ef4444; color: #fff; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-outline { background: #334155; color: #e2e8f0; }
+        .btn-outline:hover { background: #475569; }
+        .btn-sm { padding: 5px 10px; font-size: 0.75rem; }
+        .btn-xs { padding: 3px 8px; font-size: 0.7rem; }
+
+        /* 密码门 */
+        .password-gate { text-align: center; padding: 60px 20px; }
+        .password-gate .lock-icon { font-size: 4rem; margin-bottom: 16px; }
+        .password-gate h2 { color: #f1f5f9; margin-bottom: 8px; }
+        .password-gate p { color: #94a3b8; font-size: 0.9rem; margin-bottom: 20px; }
+        .password-gate input {
+            background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+            color: #e2e8f0; padding: 12px 16px; font-size: 1rem; width: 260px;
+            outline: none; margin-right: 10px;
+        }
+        .password-gate input:focus { border-color: #6366f1; }
+        .pwd-error { color: #f87171; font-size: 0.85rem; margin-top: 10px; display: none; }
+
+        /* Tabs */
+        .tabs { display: flex; gap: 0; margin-bottom: 20px; background: #0f172a; border-radius: 10px; padding: 4px; }
+        .tab { flex: 1; text-align: center; padding: 10px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 500; transition: all 0.2s; color: #94a3b8; border: none; background: transparent; }
+        .tab.active { background: #6366f1; color: #fff; }
+        .tab:hover:not(.active) { color: #e2e8f0; }
+
+        /* 创建区 */
+        textarea {
+            width: 100%; min-height: 140px; background: #0f172a; border: 1px solid #334155;
+            border-radius: 10px; color: #e2e8f0; padding: 14px; font-size: 0.9rem;
+            font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+            resize: vertical; outline: none; transition: border-color 0.2s;
+        }
+        textarea:focus { border-color: #6366f1; }
+
+        .drop-zone {
+            border: 2px dashed #334155; border-radius: 12px; padding: 40px; text-align: center;
+            cursor: pointer; transition: all 0.2s; margin-bottom: 12px;
+        }
+        .drop-zone:hover, .drop-zone.drag-over { border-color: #6366f1; background: rgba(99,102,241,0.05); }
+        .drop-zone .dz-icon { font-size: 2.5rem; margin-bottom: 8px; }
+        .drop-zone p { color: #94a3b8; font-size: 0.85rem; }
+        .drop-zone .dz-hint { color: #64748b; font-size: 0.7rem; margin-top: 4px; }
+        .drop-zone input { display: none; }
+
+        .options-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; align-items: center; }
+        .options-row label { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #94a3b8; cursor: pointer; }
+        .options-row input[type="checkbox"] { accent-color: #6366f1; }
+        .options-row input[type="text"], .options-row select {
+            background: #0f172a; border: 1px solid #334155; border-radius: 6px;
+            color: #e2e8f0; padding: 6px 10px; font-size: 0.8rem; outline: none;
+        }
+        .options-row input[type="text"]:focus, .options-row select:focus { border-color: #6366f1; }
+        .options-row input[type="text"] { width: 100px; }
+
+        .file-info { display: none; background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; }
+        .file-info.show { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+        .file-info .fi-name { color: #e2e8f0; font-size: 0.85rem; word-break: break-all; }
+        .file-info .fi-size { color: #94a3b8; font-size: 0.8rem; }
+        .progress-bar { display: none; height: 4px; background: #334155; border-radius: 2px; margin-top: 10px; overflow: hidden; }
+        .progress-bar.show { display: block; }
+        .progress-bar .fill { height: 100%; background: #6366f1; width: 0%; transition: width 0.3s; }
+
+        .hidden { display: none !important; }
+
+        /* 条目列表 */
+        .section-title { font-size: 0.8rem; color: #94a3b8; margin: 24px 0 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .item-list { display: flex; flex-direction: column; gap: 8px; }
+        .item-card {
+            background: #0f172a; border: 1px solid #1e293b; border-radius: 8px;
+            padding: 12px 16px; display: flex; align-items: center; gap: 12px;
+            transition: border-color 0.2s;
+        }
+        .item-card:hover { border-color: #334155; }
+        .item-card .item-icon { font-size: 1.1rem; flex-shrink: 0; }
+        .item-card .item-body { flex: 1; min-width: 0; }
+        .item-card .item-title { color: #e2e8f0; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .item-card .item-meta { font-size: 0.7rem; color: #64748b; margin-top: 2px; }
+        .item-card .item-actions { display: flex; gap: 4px; flex-shrink: 0; }
+        .badge-item { display: inline-block; font-size: 0.6rem; padding: 1px 6px; border-radius: 8px; margin-left: 4px; }
+        .badge-item.locked { background: rgba(245,158,11,0.2); color: #fbbf24; }
+        .badge-item.burn { background: rgba(239,68,68,0.2); color: #fca5a5; }
+        .empty-hint { text-align: center; padding: 30px; color: #64748b; font-size: 0.85rem; }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.25s;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal {
+            background: #1e293b; border: 1px solid #334155; border-radius: 16px;
+            padding: 28px; width: 90%; max-width: 420px; text-align: center;
+        }
+        .modal h3 { margin-bottom: 16px; color: #f1f5f9; }
+        .modal .qr-img { background: #fff; padding: 12px; border-radius: 10px; margin-bottom: 12px; display: inline-block; }
+        .modal .qr-url { color: #818cf8; font-size: 0.8rem; word-break: break-all; margin-bottom: 16px; }
+        .modal .btn-row { display: flex; gap: 8px; justify-content: center; }
+        .form-group { margin-bottom: 14px; text-align: left; }
+        .form-group label { display: block; font-size: 0.8rem; color: #94a3b8; margin-bottom: 6px; }
+        .form-group input {
+            width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+            color: #e2e8f0; padding: 12px; font-size: 0.9rem; outline: none;
+        }
+        .form-group input:focus { border-color: #6366f1; }
+
+        .toast {
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: #10b981; color: #fff; padding: 10px 24px; border-radius: 8px;
+            font-size: 0.9rem; z-index: 999; opacity: 0; transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        .toast.show { opacity: 1; }
+        .toast.error { background: #ef4444; }
+
+        @media (max-width: 600px) {
+            .container { padding: 16px 12px; }
+            .share-bar { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-bar">
+            <a href="/">← 返回首页</a>
+            <h1>📋 {{ user.username }} 的工作区</h1>
+        </div>
+
+        {% if need_password %}
+        <!-- ═══ 密码门 ═══ -->
+        <div class="card password-gate">
+            <div class="lock-icon">🔒</div>
+            <h2>此工作区已加密</h2>
+            <p>请输入密码以访问和编辑内容</p>
+            <div>
+                <input type="password" id="pwdInput" placeholder="访问密码" autofocus>
+                <button class="btn btn-primary" onclick="verifyPwd()">🔓 解锁</button>
+            </div>
+            <div class="pwd-error" id="pwdError">密码错误，请重试</div>
+        </div>
+        {% else %}
+        <!-- ═══ 工作区 ═══ -->
+        <!-- 共享栏 -->
+        <div class="share-bar">
+            <span style="font-size:1.2rem">👤</span>
+            <span class="label">共享链接:</span>
+            <span class="ws-url" id="wsUrl"></span>
+            <button class="btn btn-outline btn-sm" onclick="copyWsUrl()">📋 复制</button>
+            <button class="btn btn-outline btn-sm" onclick="showQR(getWsUrl())">📱 二维码</button>
+            <span class="lock-status" id="lockBadge" style="background:rgba(52,211,153,0.2);color:#6ee7b7">🔓 公开</span>
+            <button class="btn btn-outline btn-sm" onclick="showPwdModal()" id="pwdBtn">🔒 设密码</button>
+        </div>
+
+        <!-- 创建区 -->
+        <div class="card">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('text')">📝 发布文本</button>
+                <button class="tab" onclick="switchTab('file')">📎 上传文件</button>
+            </div>
+
+            <div id="textTab">
+                <textarea id="textContent" placeholder="在此粘贴文本...&#10;&#10;支持纯文本、代码片段、Markdown 等"></textarea>
+                <div class="options-row">
+                    <label><input type="checkbox" id="text_burn"> 阅后即焚</label>
+                    <select id="text_expire">
+                        <option value="0">永不过期</option><option value="1">1小时</option>
+                        <option value="6">6小时</option><option value="24">24小时</option>
+                        <option value="72">3天</option><option value="168">7天</option>
+                    </select>
+                    <input type="text" id="text_pwd" placeholder="条目密码（可选）">
+                </div>
+                <div style="margin-top:12px">
+                    <button class="btn btn-primary" onclick="publishText()">🔗 发布</button>
+                </div>
+            </div>
+
+            <div id="fileTab" class="hidden">
+                <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                    <div class="dz-icon">📁</div>
+                    <p>点击选择文件 或拖拽到此处</p>
+                    <p class="dz-hint">最大 50MB · 30+ 格式</p>
+                    <input type="file" id="fileInput" onchange="handleFileSelect(this.files[0])">
+                </div>
+                <div class="file-info" id="fileInfo">
+                    <span class="fi-name" id="fileName"></span>
+                    <span class="fi-size" id="fileSize"></span>
+                    <button class="btn btn-danger btn-xs" onclick="removeFile()">✕ 移除</button>
+                </div>
+                <div class="progress-bar" id="progressBar"><div class="fill" id="progressFill"></div></div>
+                <div class="options-row">
+                    <label><input type="checkbox" id="file_burn"> 阅后即焚</label>
+                    <select id="file_expire">
+                        <option value="0">永不过期</option><option value="1">1小时</option>
+                        <option value="6">6小时</option><option value="24">24小时</option>
+                        <option value="72">3天</option><option value="168">7天</option>
+                    </select>
+                    <input type="text" id="file_pwd" placeholder="条目密码（可选）">
+                </div>
+                <div style="margin-top:12px">
+                    <button class="btn btn-primary" onclick="uploadFile()">📤 上传</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 内容列表 -->
+        <div id="contentArea">
+            {% if pastes|length == 0 and files|length == 0 %}
+            <div class="empty-hint">📭 暂无内容，在上方创建或上传</div>
+            {% endif %}
+            {% if pastes|length > 0 %}
+            <div class="section-title">📝 文本 ({{ pastes|length }})</div>
+            <div class="item-list" id="pasteList">
+                {% for p in pastes %}
+                <div class="item-card" data-id="{{ p.id }}" data-type="paste">
+                    <span class="item-icon">📝</span>
+                    <div class="item-body">
+                        <div class="item-title">{{ p.content[:80] }}{% if p.content|length > 80 %}...{% endif %}
+                            {% if p.password %}<span class="badge-item locked">🔒</span>{% endif %}
+                            {% if p.burn_after %}<span class="badge-item burn">🔥</span>{% endif %}
+                        </div>
+                        <div class="item-meta">{{ p.created_at[:19] }}</div>
+                    </div>
+                    <div class="item-actions">
+                        <button class="btn btn-outline btn-xs" onclick="copyItemUrl(makeItemUrl('paste',{{ p.id }}))">📋</button>
+                        <button class="btn btn-outline btn-xs" onclick="showQR(makeItemUrl('paste',{{ p.id }}))">📱</button>
+                        <button class="btn btn-danger btn-xs" onclick="deleteItem('paste',{{ p.id }})">🗑</button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% if files|length > 0 %}
+            <div class="section-title">📎 文件 ({{ files|length }})</div>
+            <div class="item-list" id="fileList">
+                {% for f in files %}
+                <div class="item-card" data-id="{{ f.id }}" data-type="file">
+                    <span class="item-icon">📎</span>
+                    <div class="item-body">
+                        <div class="item-title">{{ f.original_name }}
+                            {% if f.password %}<span class="badge-item locked">🔒</span>{% endif %}
+                            {% if f.burn_after %}<span class="badge-item burn">🔥</span>{% endif %}
+                        </div>
+                        <div class="item-meta">
+                            {% if f.file_size > 1048576 %}{{ "%.1f"|format(f.file_size/1048576) }} MB
+                            {% elif f.file_size > 1024 %}{{ "%.1f"|format(f.file_size/1024) }} KB
+                            {% else %}{{ f.file_size }} B{% endif %}
+                            · {{ f.created_at[:19] }}
+                        </div>
+                    </div>
+                    <div class="item-actions">
+                        <button class="btn btn-outline btn-xs" onclick="copyItemUrl(makeItemUrl('file',{{ f.id }}))">📋</button>
+                        <button class="btn btn-outline btn-xs" onclick="showQR(makeItemUrl('file',{{ f.id }}))">📱</button>
+                        <button class="btn btn-danger btn-xs" onclick="deleteItem('file',{{ f.id }})">🗑</button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ═══ 二维码弹窗 ═══ -->
+    <div class="modal-overlay" id="qrOverlay">
+        <div class="modal">
+            <h3>📱 扫码访问</h3>
+            <div class="qr-img"><img id="qrImage" src="" alt="QR" style="width:200px;height:200px"></div>
+            <div class="qr-url" id="qrUrl"></div>
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="copyCurrentQrUrl()">📋 复制链接</button>
+                <button class="btn btn-outline" onclick="closeModal('qrOverlay')">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ 密码设置弹窗 ═══ -->
+    <div class="modal-overlay" id="pwdOverlay">
+        <div class="modal">
+            <h3>🔒 工作区密码</h3>
+            <p style="color:#94a3b8;font-size:0.85rem;margin-bottom:16px">设密码后，访问此页面需要输入密码，输入后即可编辑内容</p>
+            <div class="form-group">
+                <label>密码 <span style="color:#64748b;font-weight:400">（留空移除密码保护）</span></label>
+                <input type="password" id="wsNewPwd" placeholder="留空则公开访问">
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="savePwd()">💾 保存</button>
+                <button class="btn btn-outline" onclick="closeModal('pwdOverlay')">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ── 状态 ──
+        const WS_USERNAME = '{{ user.username }}';
+        const WS_ID = {{ user.id }};
+        let currentTab = 'text';
+        let selectedFile = null;
+        let currentQrUrl = '';
+
+        // ── 工具 ──
+        function showToast(msg, isErr, dur) { dur = dur || 2200; const t = document.getElementById('toast'); t.textContent = msg; t.className = 'toast' + (isErr ? ' error' : '') + ' show'; setTimeout(function(){ t.classList.remove('show'); }, dur); }
+        function formatSize(b) { if (b < 1048576) return (b / 1024).toFixed(1) + ' KB'; return (b / 1048576).toFixed(1) + ' MB'; }
+        function getWsUrl() { return window.location.origin + '/u/' + WS_USERNAME; }
+        function makeItemUrl(type, id) { return window.location.origin + '/u/' + WS_USERNAME + '/' + (type === 'paste' ? 'p' : 'f') + '/' + id + (type === 'file' ? '/download' : ''); }
+
+        // ── 初始化 ──
+        document.getElementById('wsUrl').textContent = getWsUrl();
+        {% if user.password %}
+        document.getElementById('lockBadge').innerHTML = '&#128274; 加密';
+        document.getElementById('lockBadge').style.cssText = 'background:rgba(245,158,11,0.2);color:#fbbf24';
+        document.getElementById('pwdBtn').textContent = '🔒 改密码';
+        {% endif %}
+
+        // ── 密码验证 ──
+        async function verifyPwd() {
+            const pwd = document.getElementById('pwdInput').value;
+            try {
+                const res = await fetch('/api/user/' + WS_USERNAME + '/verify', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: pwd })
+                });
+                if (res.ok) { location.reload(); }
+                else { document.getElementById('pwdError').style.display = 'block'; }
+            } catch (e) { document.getElementById('pwdError').style.display = 'block'; }
+        }
+        document.getElementById('pwdInput')?.addEventListener('keydown', function(e) { if (e.key === 'Enter') verifyPwd(); });
+
+        // ── Tab ──
+        function switchTab(mode) {
+            currentTab = mode;
+            document.querySelectorAll('.tab').forEach(function(t,i){ t.classList.toggle('active', i === (mode === 'text' ? 0 : 1)); });
+            document.getElementById('textTab').classList.toggle('hidden', mode !== 'text');
+            document.getElementById('fileTab').classList.toggle('hidden', mode !== 'file');
+        }
+
+        // ── 发布文本 ──
+        async function publishText() {
+            var content = document.getElementById('textContent').value.trim();
+            if (!content) { showToast('请输入内容', true); return; }
+            try {
+                var res = await fetch('/api/paste', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content: content,
+                        burn_after: document.getElementById('text_burn').checked ? 1 : 0,
+                        expire_hours: parseInt(document.getElementById('text_expire').value),
+                        password: document.getElementById('text_pwd').value.trim(),
+                        user_id: WS_ID
+                    })
+                });
+                var data = await res.json();
+                if (!res.ok) { showToast(data.error, true); return; }
+                document.getElementById('textContent').value = '';
+                document.getElementById('text_burn').checked = false;
+                document.getElementById('text_expire').value = '0';
+                document.getElementById('text_pwd').value = '';
+                location.reload();
+            } catch (e) { showToast('发布失败', true); }
+        }
+
+        // ── 文件 ──
+        function handleFileSelect(file) {
+            if (!file) return;
+            selectedFile = file;
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatSize(file.size);
+            document.getElementById('fileInfo').classList.add('show');
+            document.getElementById('dropZone').style.display = 'none';
+        }
+        function removeFile() {
+            selectedFile = null; document.getElementById('fileInput').value = '';
+            document.getElementById('fileInfo').classList.remove('show');
+            document.getElementById('dropZone').style.display = '';
+        }
+        function uploadFile() {
+            if (!selectedFile) { showToast('请选择文件', true); return; }
+            var fd = new FormData();
+            fd.append('file', selectedFile);
+            fd.append('burn_after', document.getElementById('file_burn').checked ? '1' : '0');
+            fd.append('expire_hours', document.getElementById('file_expire').value);
+            fd.append('password', document.getElementById('file_pwd').value.trim());
+            fd.append('user_id', WS_ID);
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/file/upload');
+            xhr.upload.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    document.getElementById('progressBar').classList.add('show');
+                    document.getElementById('progressFill').style.width = Math.round(e.loaded / e.total * 100) + '%';
+                }
+            };
+            xhr.onload = function() {
+                document.getElementById('progressBar').classList.remove('show');
+                try { var d = JSON.parse(xhr.responseText); if (d.error) { showToast(d.error, true); return; } location.reload(); }
+                catch(e) { showToast('上传失败', true); }
+            };
+            xhr.onerror = function() { showToast('网络错误', true); };
+            xhr.send(fd);
+        }
+
+        // ── 删除 ──
+        async function deleteItem(type, id) {
+            if (!confirm('确定删除？')) return;
+            try {
+                var res = await fetch('/api/' + type + '/by-id/' + id, { method: 'DELETE' });
+                if (!res.ok) { var e = await res.json(); showToast(e.error, true); return; }
+                var el = document.querySelector('.item-card[data-id="' + id + '"][data-type="' + type + '"]');
+                if (el) el.remove();
+                showToast('已删除');
+            } catch(e) { showToast('删除失败', true); }
+        }
+
+        // ── QR / 复制 ──
+        function showQR(url) {
+            currentQrUrl = url;
+            document.getElementById('qrImage').src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(url);
+            document.getElementById('qrUrl').textContent = url;
+            document.getElementById('qrOverlay').classList.add('active');
+        }
+        function copyWsUrl() { copyText(getWsUrl()); }
+        function copyItemUrl(url) { copyText(url); }
+        function copyCurrentQrUrl() { copyText(currentQrUrl); }
+        function copyText(text) {
+            navigator.clipboard.writeText(text).then(function(){ showToast('已复制'); }).catch(function(){ showToast('复制失败', true); });
+        }
+
+        // ── 密码设置 ──
+        function showPwdModal() {
+            document.getElementById('wsNewPwd').value = '';
+            document.getElementById('pwdOverlay').classList.add('active');
+        }
+        async function savePwd() {
+            var pwd = document.getElementById('wsNewPwd').value.trim();
+            try {
+                var res = await fetch('/api/user/' + WS_USERNAME + '/set-password', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: pwd })
+                });
+                var d = await res.json();
+                if (d.error) { showToast(d.error, true); return; }
+                closeModal('pwdOverlay');
+                showToast(pwd ? '密码已设置' : '密码已移除');
+                if (pwd) { sessionStorage.setItem('ws_pwd_' + WS_USERNAME, pwd); }
+            } catch(e) { showToast('操作失败', true); }
+        }
+
+        // ── Modal ──
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+        document.getElementById('qrOverlay').addEventListener('click', function(e){ if (e.target === this) closeModal('qrOverlay'); });
+        document.getElementById('pwdOverlay').addEventListener('click', function(e){ if (e.target === this) closeModal('pwdOverlay'); });
+
+        // ── 拖拽 ──
+        var dz = document.getElementById('dropZone');
+        if (dz) {
+            ['dragover','dragenter'].forEach(function(e){ dz.addEventListener(e, function(ev){ ev.preventDefault(); dz.classList.add('drag-over'); }); });
+            ['dragleave','drop'].forEach(function(e){ dz.addEventListener(e, function(ev){ ev.preventDefault(); dz.classList.remove('drag-over'); }); });
+            dz.addEventListener('drop', function(e) {
+                var file = e.dataTransfer.files[0];
+                if (file) { document.getElementById('fileInput').files = e.dataTransfer.files; handleFileSelect(file); }
+            });
+        }
+
+        // ── 快捷键 ──
+        document.getElementById('textContent')?.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') publishText();
+        });
+    </script>
+</body>
+</html>
